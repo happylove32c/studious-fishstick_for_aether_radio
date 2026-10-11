@@ -170,10 +170,6 @@ export default function NetworkIndicator() {
     abortSpeedTest();
   };
 
-  const handleMouseEnter = () => {
-    runSpeedTest();
-  };
-
   const diffSeconds = Math.max(0, Math.floor((now - lastUpdated) / 1000));
   const timeAgoText =
     diffSeconds === 0 ? "Updated just now" : `Updated ${diffSeconds}s ago`;
@@ -311,10 +307,7 @@ export default function NetworkIndicator() {
   return (
     <>
       {/* Indicator button with tooltip on desktop */}
-      <div
-        className="relative group flex items-center"
-        onMouseEnter={handleMouseEnter}
-      >
+      <div className="relative group flex items-center">
         <button
           type="button"
           onClick={handleOpenModal}

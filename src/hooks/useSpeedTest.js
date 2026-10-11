@@ -70,7 +70,7 @@ export function useSpeedTest() {
     setStatus("running");
     setError(null);
 
-    const url = `https://speed.cloudflare.com/__down?bytes=200000&_t=${now}`;
+    const url = `https://speed.cloudflare.com/__down?bytes=1000000&_t=${now}`;
     const start = performance.now();
 
     try {
