@@ -11,6 +11,7 @@ export function useSpeedTest() {
   const isMountedRef = useRef(true);
   const lastCompletedRef = useRef(0);
   const statusRef = useRef("idle");
+  const resultRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -28,10 +29,10 @@ export function useSpeedTest() {
       controllerRef.current = null;
     }
     if (isMountedRef.current) {
-      statusRef.current = result ? "done" : "idle";
+      statusRef.current = resultRef.current ? "done" : "idle";
       setStatus(statusRef.current);
     }
-  }, [result]);
+  }, []);
 
   const reset = useCallback(() => {
     if (controllerRef.current) {
@@ -39,6 +40,7 @@ export function useSpeedTest() {
       controllerRef.current = null;
     }
     lastCompletedRef.current = 0;
+    resultRef.current = null;
     if (isMountedRef.current) {
       setResult(null);
       setError(null);
@@ -98,6 +100,7 @@ export function useSpeedTest() {
         timestamp: lastCompletedRef.current,
       };
 
+      resultRef.current = newResult;
       setResult(newResult);
       statusRef.current = "done";
       setStatus("done");
@@ -106,7 +109,7 @@ export function useSpeedTest() {
 
       if (err?.name === "AbortError") {
         // Silent abort: clear running state
-        statusRef.current = result ? "done" : "idle";
+        statusRef.current = resultRef.current ? "done" : "idle";
         setStatus(statusRef.current);
         return;
       }
@@ -119,7 +122,7 @@ export function useSpeedTest() {
         controllerRef.current = null;
       }
     }
-  }, [result]);
+  }, []);
 
   return {
     run,
