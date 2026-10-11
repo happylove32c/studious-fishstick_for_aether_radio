@@ -4,7 +4,7 @@ import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
 
 function HomePage() {
-  const { stations, loading, error } = useStations();
+  const { stations, loading, error, reload } = useStations();
   const { current } = usePlayer();
 
   // Group stations by genre
@@ -31,13 +31,27 @@ function HomePage() {
             Stations
           </h1>
 
-          <p className="mt-4 text-[10px] uppercase tracking-[0.35em] text-white/40">
-            {loading
-              ? "Scanning frequencies…"
-              : error
-              ? `Error: ${error}`
-              : `${genres.length} genres · ${stations.length} stations on air`}
-          </p>
+          {error && stations.length === 0 ? (
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-[10px] uppercase tracking-[0.35em] text-red-400">
+                Error: {error}
+              </span>
+              <button
+                onClick={reload}
+                className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <p className="mt-4 text-[10px] uppercase tracking-[0.35em] text-white/40">
+              {loading
+                ? "Scanning frequencies…"
+                : error
+                ? `Error: ${error}`
+                : `${genres.length} genres · ${stations.length} stations on air`}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">

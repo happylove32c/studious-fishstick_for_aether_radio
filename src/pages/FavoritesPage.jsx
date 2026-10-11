@@ -5,7 +5,7 @@ import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
 
 export default function FavoritesPage() {
-  const { stations, loading, error } = useStations();
+  const { stations, loading, error, reload } = useStations();
   const { current, isFavorite } = usePlayer();
 
   const favoriteStations = stations.filter((s) => isFavorite(s));
@@ -33,15 +33,29 @@ export default function FavoritesPage() {
           Favorites
         </h1>
 
-        <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
-          {loading
-            ? "Scanning presets…"
-            : error
-            ? `Error: ${error}`
-            : `${favoriteStations.length} ${
-                favoriteStations.length === 1 ? "station" : "stations"
-              } saved`}
-        </p>
+        {error && stations.length === 0 ? (
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-[0.35em] text-red-400">
+              Error: {error}
+            </span>
+            <button
+              onClick={reload}
+              className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
+            {loading
+              ? "Scanning presets…"
+              : error
+              ? `Error: ${error}`
+              : `${favoriteStations.length} ${
+                  favoriteStations.length === 1 ? "station" : "stations"
+                } saved`}
+          </p>
+        )}
 
         {!loading && favoriteStations.length === 0 && (
           <div className="mt-12 border border-white/10 bg-white/[0.03] p-8 text-center">

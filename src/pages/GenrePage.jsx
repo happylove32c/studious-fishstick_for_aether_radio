@@ -7,7 +7,7 @@ import { getGenreColor } from "../utils/genreColors";
 
 export default function GenrePage() {
   const { genre } = useParams();
-  const { stations, loading, error } = useStations();
+  const { stations, loading, error, reload } = useStations();
   const { current } = usePlayer();
 
   const color = getGenreColor(genre);
@@ -38,13 +38,27 @@ export default function GenrePage() {
           {genre}
         </h1>
 
-        <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
-          {loading
-            ? "Scanning stations…"
-            : error
-            ? `Error: ${error}`
-            : `${filtered.length} ${filtered.length === 1 ? "station" : "stations"} on air`}
-        </p>
+        {error && stations.length === 0 ? (
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-[0.35em] text-red-400">
+              Error: {error}
+            </span>
+            <button
+              onClick={reload}
+              className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
+            {loading
+              ? "Scanning stations…"
+              : error
+              ? `Error: ${error}`
+              : `${filtered.length} ${filtered.length === 1 ? "station" : "stations"} on air`}
+          </p>
+        )}
 
         <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           {loading
