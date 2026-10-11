@@ -4,6 +4,9 @@ import { usePlayer } from "../context/usePlayer";
 
 const TEXT_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
+const isButtonOrA = (t) =>
+  Boolean(t && (t.tagName === "BUTTON" || t.tagName === "A" || t.closest?.("button, a")));
+
 export function usePlayerShortcuts() {
   const { current, toggle, next, prev, playlist } = usePlayer();
 
@@ -37,17 +40,24 @@ export function usePlayerShortcuts() {
 
       // Space → play/pause
       if (e.code === "Space") {
+        if (isButtonOrA(e.target)) return;
         e.preventDefault();
         if (!e.repeat) toggle();
       }
     };
 
     const onKeyUp = (e) => {
-      // Stops a focused button from also firing its click on keyup
-      const isOurKey =
-        e.code === "Space" ||
-        ((e.code === "KeyP" || e.code === "KeyN") && e.shiftKey);
-      if (isOurKey && !ignore(e)) e.preventDefault();
+      if (ignore(e)) return;
+
+      if (e.code === "Space") {
+        if (isButtonOrA(e.target)) return;
+        e.preventDefault();
+        return;
+      }
+
+      if ((e.code === "KeyP" || e.code === "KeyN") && e.shiftKey) {
+        e.preventDefault();
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
