@@ -558,6 +558,58 @@ export function PlayerProvider({ children }) {
 
   const format = deriveFormat(current?.streamUrl);
 
+  const msRef = useRef({});
+  const canSkip = playlist.length > 1;
+
+  useEffect(() => {
+    msRef.current = {
+      play: () => {
+        if (!isPlaying) toggle();
+      },
+      pause: () => {
+        if (isPlaying) toggle();
+      },
+      stop,
+      previoustrack: prev,
+      nexttrack: next,
+    };
+  }, [isPlaying, toggle, stop, prev, next]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const live = ["play", "pause", "stop"];
+    const skip = ["previoustrack", "nexttrack"];
+    for (const a of [...live, ...skip]) {
+      const on = live.includes(a) || canSkip;
+      try {
+        ms.setActionHandler(a, on ? () => msRef.current[a]?.() : null);
+      } catch {
+        /* unsupported */
+      }
+    }
+  }, [canSkip]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.metadata = current
+      ? new MediaMetadata({
+          title: current.name,
+          artist: current.genre || "Live radio",
+          album: "Aether FM",
+        })
+      : null;
+  }, [current]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = !current
+      ? "none"
+      : isPlaying
+      ? "playing"
+      : "paused";
+  }, [current, isPlaying]);
+
   return (
     <PlayerContext.Provider
       value={{
