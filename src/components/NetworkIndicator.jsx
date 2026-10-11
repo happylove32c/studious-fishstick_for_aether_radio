@@ -78,10 +78,22 @@ function getNetworkInfo() {
   };
 }
 
+function isSameNetwork(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.online === b.online &&
+    a.level === b.level &&
+    a.color === b.color &&
+    a.speedText === b.speedText &&
+    a.subText === b.subText &&
+    a.downlink === b.downlink &&
+    a.effectiveType === b.effectiveType
+  );
+}
+
 export default function NetworkIndicator() {
   const [network, setNetwork] = useState(getNetworkInfo);
-  const [lastUpdated, setLastUpdated] = useState(() => Date.now());
-  const [now, setNow] = useState(() => Date.now());
   const [showModal, setShowModal] = useState(false);
 
   const {
@@ -93,45 +105,18 @@ export default function NetworkIndicator() {
   } = useSpeedTest();
 
   const updateNetwork = useCallback(() => {
-    setNetwork(getNetworkInfo());
-    const timestamp = Date.now();
-    setLastUpdated(timestamp);
-    setNow(timestamp);
+    const next = getNetworkInfo();
+    setNetwork((prev) => (isSameNetwork(prev, next) ? prev : next));
   }, []);
 
-  // 2-second passive timer
   useEffect(() => {
-    let intervalId = null;
-
-    const startPolling = () => {
-      if (!intervalId) {
-        updateNetwork();
-        intervalId = setInterval(() => {
-          setNetwork(getNetworkInfo());
-          setNow(Date.now());
-        }, 2000);
-      }
-    };
-
-    const stopPolling = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        stopPolling();
         abortSpeedTest();
       } else {
-        startPolling();
+        updateNetwork();
       }
     };
-
-    if (document.visibilityState !== "hidden") {
-      startPolling();
-    }
 
     const connection =
       typeof navigator !== "undefined"
@@ -149,7 +134,6 @@ export default function NetworkIndicator() {
     }
 
     return () => {
-      stopPolling();
       abortSpeedTest();
       window.removeEventListener("online", updateNetwork);
       window.removeEventListener("offline", updateNetwork);
@@ -169,10 +153,6 @@ export default function NetworkIndicator() {
     setShowModal(false);
     abortSpeedTest();
   };
-
-  const diffSeconds = Math.max(0, Math.floor((now - lastUpdated) / 1000));
-  const timeAgoText =
-    diffSeconds === 0 ? "Updated just now" : `Updated ${diffSeconds}s ago`;
 
   const { level, color, speedText, subText, online } = network;
 
@@ -286,12 +266,6 @@ export default function NetworkIndicator() {
               {testError}
             </p>
           )}
-
-          <div className="border-t border-white/10 pt-2">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-white/40">
-              {timeAgoText}
-            </p>
-          </div>
         </div>
 
         <button
@@ -352,7 +326,7 @@ export default function NetworkIndicator() {
 
         {/* Desktop Tooltip (sm and up) */}
         <div className="pointer-events-none absolute right-0 top-full mt-2 hidden z-50 min-w-[190px] border border-white/20 bg-[#111] p-3 shadow-xl sm:group-hover:block">
-          <div className="space-y-1.5 pb-2 border-b border-white/10">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[8px] uppercase tracking-[0.2em] text-white/40">
                 Reported
@@ -374,10 +348,6 @@ export default function NetworkIndicator() {
               </span>
             </div>
           </div>
-
-          <p className="mt-1.5 text-[8px] uppercase tracking-[0.2em] text-white/30 text-right">
-            {timeAgoText}
-          </p>
         </div>
       </div>
 
