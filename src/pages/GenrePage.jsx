@@ -3,11 +3,14 @@ import Header from "../components/Header";
 import StationCard from "../components/StationCard";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
+import { getGenreColor } from "../utils/genreColors";
 
 export default function GenrePage() {
   const { genre } = useParams();
   const { stations, loading, error } = useStations();
   const { current } = usePlayer();
+
+  const color = getGenreColor(genre);
 
   const filtered = stations.filter(
     (s) => (s.genre?.trim() || "Unknown") === genre
@@ -19,20 +22,23 @@ export default function GenrePage() {
       <section className={`px-4 py-10 sm:px-6 md:px-10 md:py-16 ${current ? "pb-24 md:pb-24" : ""}`}>
         <Link
           to="/"
-          className="mb-8 inline-block text-[10px] uppercase tracking-[0.35em] text-white/40 hover:text-white"
+          className="mb-8 inline-block text-[11px] uppercase tracking-[0.35em] text-white/60 hover:text-white"
         >
           ← Back
         </Link>
 
-        <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/30">
+        <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/50">
           Frequency
         </p>
 
-        <h1 className="text-5xl font-black uppercase leading-none tracking-[-0.06em] text-white md:text-8xl">
+        <h1
+          className="text-5xl font-black uppercase leading-none tracking-[-0.06em] md:text-8xl"
+          style={{ color }}
+        >
           {genre}
         </h1>
 
-        <p className="mt-4 text-[10px] uppercase tracking-[0.35em] text-white/40">
+        <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
           {loading
             ? "Scanning stations…"
             : error

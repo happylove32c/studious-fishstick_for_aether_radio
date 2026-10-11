@@ -51,3 +51,31 @@ body {
   border: none;
   cursor: pointer;
 }
+
+/*
+  Mini-player blob. The blob is 50% of the bar wide, and translateX % is
+  relative to the blob itself, so -40% -> 140% sweeps its centre from ~5% to
+  ~95% of the bar. Two keyframes + alternate + ease-in-out = one smooth
+  glide that slows gently at each end (where the blob is mostly off-screen).
+  Only transform is animated.
+*/
+@keyframes blob-glide {
+  from {
+    transform: translate3d(-40%, -50%, 0);
+  }
+  to {
+    transform: translate3d(140%, -50%, 0);
+  }
+}
+
+.blob-glide {
+  animation: blob-glide 14s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob-glide {
+    animation: none;
+    transform: translate3d(50%, -50%, 0);
+  }
+}

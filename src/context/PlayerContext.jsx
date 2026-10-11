@@ -3,10 +3,20 @@ import Hls from "hls.js";
 import { PlayerContext } from "./PlayerContextDef";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Switches / helpers
 // ---------------------------------------------------------------------------
 
+// Set to false to go back to plain <audio> playback with no Web Audio at all.
+const ANALYSER_ENABLED = true;
+
 const FAVORITES_KEY = "aether_favorites";
+const VOLUME_KEY = "aether_volume";
+const MUTED_KEY = "aether_muted";
+const LAST_STATION_KEY = "aether_last_station";
+
+// url -> false once we learn the server sends no CORS headers.
+// Such streams still play, but the browser will not let us analyse them.
+const corsSupport = new Map();
 
 function loadFavorites() {
   try {
@@ -21,7 +31,58 @@ function saveFavorites(favs) {
   try {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
   } catch {
-    /* quota / private-mode – ignore */
+    /* quota / private-mode - ignore */
+  }
+}
+
+function loadVolume() {
+  try {
+    const raw = localStorage.getItem(VOLUME_KEY);
+    if (raw === null) return 0.8;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.8;
+  } catch {
+    return 0.8;
+  }
+}
+
+function loadMuted() {
+  try {
+    return localStorage.getItem(MUTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function loadLastStation() {
+  try {
+    const raw = localStorage.getItem(LAST_STATION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Minimal shape check — anything malformed is discarded.
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.streamUrl === "string" &&
+      parsed.streamUrl.length > 0
+    ) {
+      return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function saveLastStation(station) {
+  try {
+    if (!station || !station.streamUrl) {
+      localStorage.removeItem(LAST_STATION_KEY);
+      return;
+    }
+    localStorage.setItem(LAST_STATION_KEY, JSON.stringify(station));
+  } catch {
+    /* quota / private-mode - ignore */
   }
 }
 
@@ -52,15 +113,36 @@ function deriveFormat(url) {
 
 export function PlayerProvider({ children }) {
   const audioRef = useRef(null);
+  const unbindRef = useRef(null);
   const hlsRef = useRef(null);
   const stoppingRef = useRef(false);
   const hlsMediaRecoveredRef = useRef(false);
   const hlsNetworkRecoveredRef = useRef(false);
 
-  const [current, setCurrent] = useState(null);
+  // Web Audio
+  const ctxRef = useRef(null);
+  const analyserNodeRef = useRef(null);
+  const sourceRef = useRef(null);
+  // Exposed to the UI. Non-null ONLY while the current <audio> element is
+  // routed through the analyser (i.e. real audio data is available).
+  const analyserRef = useRef(null);
+
+  // Playback bookkeeping.
+  // Volume / mute refs read the same persisted values as the state below, so
+  // the very first <audio> element picks up the restored settings.
+  const tryingCorsRef = useRef(false);
+  const stationRef = useRef(null);
+  const retryRef = useRef(null);
+  const volumeRef = useRef(loadVolume());
+  const mutedRef = useRef(loadMuted());
+
+  // The last station is restored paused — not played. Browsers block autoplay
+  // with sound until a user gesture, so trying to play on mount would just
+  // fail silently and confuse the status badge.
+  const [current, setCurrent] = useState(loadLastStation);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolumeState] = useState(0.8);
-  const [muted, setMuted] = useState(false);
+  const [volume, setVolumeState] = useState(loadVolume);
+  const [muted, setMuted] = useState(loadMuted);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | connecting | connected | error
   const [playlist, setPlaylist] = useState([]);
@@ -72,56 +154,29 @@ export function PlayerProvider({ children }) {
     saveFavorites(favorites);
   }, [favorites]);
 
-  // Create the Audio element once
+  // Persist volume
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = "none";
-    audio.volume = volume;
-    audioRef.current = audio;
+    try {
+      localStorage.setItem(VOLUME_KEY, String(volume));
+    } catch {
+      /* ignore */
+    }
+  }, [volume]);
 
-    const onPlay = () => {
-      setIsPlaying(true);
-    };
+  // Persist muted
+  useEffect(() => {
+    try {
+      localStorage.setItem(MUTED_KEY, muted ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [muted]);
 
-    const onPause = () => {
-      setIsPlaying(false);
-      setStatus((prev) => (prev === "error" ? "error" : "idle"));
-    };
+  // Persist last station so reopening the app returns you to it, paused.
+  useEffect(() => {
+    saveLastStation(current);
+  }, [current]);
 
-    const onPlaying = () => {
-      setStatus("connected");
-    };
-
-    const onWaiting = () => {
-      setStatus("connecting");
-    };
-
-    const onError = () => {
-      // Ignore errors when we are stopping (src set to "")
-      if (stoppingRef.current) return;
-      setIsPlaying(false);
-      setError("Stream failed to load");
-      setStatus("error");
-    };
-
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("playing", onPlaying);
-    audio.addEventListener("waiting", onWaiting);
-    audio.addEventListener("error", onError);
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("playing", onPlaying);
-      audio.removeEventListener("waiting", onWaiting);
-      audio.removeEventListener("error", onError);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Destroy HLS helper
   const destroyHls = useCallback(() => {
     if (hlsRef.current) {
       hlsRef.current.destroy();
@@ -129,25 +184,161 @@ export function PlayerProvider({ children }) {
     }
   }, []);
 
-  // Attach source (plain or HLS)
-  const attachSource = useCallback(
-    (audio, url) => {
+  // If an attempt made with crossorigin="anonymous" fails, the server almost
+  // certainly lacks CORS headers. Remember that and retry as a plain element.
+  const handleCorsFailure = useCallback(() => {
+    if (!tryingCorsRef.current) return false;
+    tryingCorsRef.current = false;
+    const station = stationRef.current;
+    if (!station) return false;
+    corsSupport.set(station.streamUrl, false);
+    if (retryRef.current) retryRef.current(station);
+    return true;
+  }, []);
+
+  // Wire the listeners for one <audio> element. Returns an unbind function.
+  const bindAudio = useCallback(
+    (audio) => {
+      const onPlay = () => setIsPlaying(true);
+
+      const onPause = () => {
+        setIsPlaying(false);
+        setStatus((prev) => (prev === "error" ? "error" : "idle"));
+      };
+
+      const onPlaying = () => {
+        tryingCorsRef.current = false;
+        const ctx = ctxRef.current;
+        if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+        setStatus("connected");
+      };
+
+      const onWaiting = () => setStatus("connecting");
+
+      const onError = () => {
+        if (stoppingRef.current) return;
+        if (handleCorsFailure()) return;
+        setIsPlaying(false);
+        setError("Stream failed to load");
+        setStatus("error");
+      };
+
+      audio.addEventListener("play", onPlay);
+      audio.addEventListener("pause", onPause);
+      audio.addEventListener("playing", onPlaying);
+      audio.addEventListener("waiting", onWaiting);
+      audio.addEventListener("error", onError);
+
+      return () => {
+        audio.removeEventListener("play", onPlay);
+        audio.removeEventListener("pause", onPause);
+        audio.removeEventListener("playing", onPlaying);
+        audio.removeEventListener("waiting", onWaiting);
+        audio.removeEventListener("error", onError);
+      };
+    },
+    [handleCorsFailure]
+  );
+
+  // A media element that has been routed into Web Audio cannot be un-routed,
+  // so every playback start gets a fresh element.
+  const makeAudio = useCallback(() => {
+    if (unbindRef.current) {
+      unbindRef.current();
+      unbindRef.current = null;
+    }
+    try {
+      if (sourceRef.current) sourceRef.current.disconnect();
+    } catch {
+      /* ignore */
+    }
+    sourceRef.current = null;
+    analyserRef.current = null;
+
+    const old = audioRef.current;
+    if (old) {
+      old.pause();
+      old.removeAttribute("src");
+      old.load();
+    }
+
+    const audio = new Audio();
+    audio.preload = "none";
+    audio.volume = volumeRef.current;
+    audio.muted = mutedRef.current;
+    audioRef.current = audio;
+    unbindRef.current = bindAudio(audio);
+    return audio;
+  }, [bindAudio]);
+
+  const connectAnalyser = useCallback((audio) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+
+      if (!ctxRef.current) ctxRef.current = new AudioCtx();
+      const ctx = ctxRef.current;
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+      if (!analyserNodeRef.current) {
+        const node = ctx.createAnalyser();
+        node.fftSize = 512;
+        node.smoothingTimeConstant = 0.7;
+        node.minDecibels = -90;
+        node.maxDecibels = -25;
+        node.connect(ctx.destination);
+        analyserNodeRef.current = node;
+      }
+
+      const source = ctx.createMediaElementSource(audio);
+      source.connect(analyserNodeRef.current);
+      sourceRef.current = source;
+      analyserRef.current = analyserNodeRef.current;
+    } catch (err) {
+      console.warn("Analyser unavailable:", err);
+      analyserRef.current = null;
+    }
+  }, []);
+
+  const startPlayback = useCallback(
+    (station) => {
+      const url = station.streamUrl;
+
+      stoppingRef.current = false;
+      stationRef.current = station;
       destroyHls();
       hlsMediaRecoveredRef.current = false;
       hlsNetworkRecoveredRef.current = false;
 
-      if (needsHls(url) && Hls.isSupported()) {
+      const viaHls = needsHls(url) && Hls.isSupported();
+      // hls.js feeds the element a same-origin blob, so it can always be
+      // analysed. Plain streams need CORS headers, so we try and fall back.
+      const wantCors =
+        ANALYSER_ENABLED && !viaHls && corsSupport.get(url) !== false;
+
+      const audio = makeAudio();
+      tryingCorsRef.current = wantCors;
+      if (wantCors) audio.crossOrigin = "anonymous";
+      if (ANALYSER_ENABLED && (wantCors || viaHls)) connectAnalyser(audio);
+
+      if (viaHls) {
         const hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(audio);
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !hlsMediaRecoveredRef.current) {
+            if (
+              data.type === Hls.ErrorTypes.MEDIA_ERROR &&
+              !hlsMediaRecoveredRef.current
+            ) {
               hlsMediaRecoveredRef.current = true;
               hls.recoverMediaError();
               return;
             }
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && !hlsNetworkRecoveredRef.current) {
+            if (
+              data.type === Hls.ErrorTypes.NETWORK_ERROR &&
+              !hlsNetworkRecoveredRef.current
+            ) {
               hlsNetworkRecoveredRef.current = true;
               hls.startLoad();
               return;
@@ -162,9 +353,32 @@ export function PlayerProvider({ children }) {
       } else {
         audio.src = url;
       }
+
+      audio.play().catch((err) => {
+        if (err?.name === "AbortError") return;
+        // A newer element has taken over; this failure is stale.
+        if (audioRef.current !== audio) return;
+        if (handleCorsFailure()) return;
+        console.error("Audio playback error:", err);
+        setIsPlaying(false);
+        setError("Stream failed to load");
+        setStatus("error");
+      });
     },
-    [destroyHls]
+    [connectAnalyser, destroyHls, handleCorsFailure, makeAudio]
   );
+
+  useEffect(() => {
+    retryRef.current = startPlayback;
+  }, [startPlayback]);
+
+  // Unmount cleanup
+  useEffect(() => {
+    return () => {
+      if (unbindRef.current) unbindRef.current();
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, []);
 
   const isCurrent = useCallback(
     (station) => {
@@ -178,13 +392,11 @@ export function PlayerProvider({ children }) {
     (station, list) => {
       if (!station || !station.streamUrl) return;
 
-      const audio = audioRef.current;
       const alreadyCurrent =
         current && stationKey(current) === stationKey(station);
 
-      // Guard: if already current and status is not error, skip re-init.
-      // Only update playlist/index if a new list was passed.
-      if (alreadyCurrent && audio && status !== "error") {
+      // Already current and healthy: skip re-init, only refresh the playlist.
+      if (alreadyCurrent && audioRef.current && status !== "error") {
         if (Array.isArray(list) && list.length > 0) {
           const newIdx = list.findIndex(
             (s) => stationKey(s) === stationKey(station)
@@ -195,7 +407,6 @@ export function PlayerProvider({ children }) {
         return;
       }
 
-      stoppingRef.current = false;
       setError(null);
       setCurrent(station);
       setStatus("connecting");
@@ -211,55 +422,47 @@ export function PlayerProvider({ children }) {
         setIndex(0);
       }
 
-      if (audio) {
-        attachSource(audio, station.streamUrl);
-        audio.play().catch((err) => {
-          if (err?.name === "AbortError") return;
-          console.error("Audio playback error:", err);
-          setIsPlaying(false);
-          setError("Stream failed to load");
-          setStatus("error");
-        });
-      }
+      startPlayback(station);
     },
-    [attachSource, current, status]
+    [current, startPlayback, status]
   );
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !current) return;
+    if (!current) return;
 
     if (isPlaying) {
-      audio.pause();
+      if (audio) audio.pause();
     } else {
-      stoppingRef.current = false;
+      // If we restored a station on mount, audioRef is null until the first
+      // play. startPlayback creates the element and starts it.
       setError(null);
       setStatus("connecting");
-      attachSource(audio, current.streamUrl);
-      audio.play().catch((err) => {
-        if (err?.name === "AbortError") return;
-        console.error("Audio playback error:", err);
-        setIsPlaying(false);
-        setError("Stream failed to load");
-        setStatus("error");
-      });
+      startPlayback(current);
     }
-  }, [attachSource, current, isPlaying]);
+  }, [current, isPlaying, startPlayback]);
 
   const stop = useCallback(() => {
     stoppingRef.current = true;
+    tryingCorsRef.current = false;
     destroyHls();
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
       audio.src = "";
     }
+    analyserRef.current = null;
     setCurrent(null);
     setIsPlaying(false);
     setError(null);
     setStatus("idle");
     setPlaylist([]);
     setIndex(-1);
+    try {
+      localStorage.removeItem(LAST_STATION_KEY);
+    } catch {
+      /* ignore */
+    }
   }, [destroyHls]);
 
   const next = useCallback(() => {
@@ -276,20 +479,16 @@ export function PlayerProvider({ children }) {
 
   const handleSetVolume = useCallback((val) => {
     const newVol = Math.max(0, Math.min(1, val));
+    volumeRef.current = newVol;
     setVolumeState(newVol);
-    if (audioRef.current) {
-      audioRef.current.volume = newVol;
-    }
+    if (audioRef.current) audioRef.current.volume = newVol;
   }, []);
 
   const toggleMute = useCallback(() => {
-    setMuted((prev) => {
-      const next = !prev;
-      if (audioRef.current) {
-        audioRef.current.muted = next;
-      }
-      return next;
-    });
+    const nextMuted = !mutedRef.current;
+    mutedRef.current = nextMuted;
+    setMuted(nextMuted);
+    if (audioRef.current) audioRef.current.muted = nextMuted;
   }, []);
 
   const isFavorite = useCallback(
@@ -300,16 +499,13 @@ export function PlayerProvider({ children }) {
     [favorites]
   );
 
-  const toggleFavorite = useCallback(
-    (station) => {
-      const key = stationKey(station);
-      if (!key) return;
-      setFavorites((prev) =>
-        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-      );
-    },
-    []
-  );
+  const toggleFavorite = useCallback((station) => {
+    const key = stationKey(station);
+    if (!key) return;
+    setFavorites((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }, []);
 
   const format = deriveFormat(current?.streamUrl);
 
@@ -336,6 +532,7 @@ export function PlayerProvider({ children }) {
         isFavorite,
         toggleFavorite,
         audioRef,
+        analyserRef,
       }}
     >
       {children}
