@@ -135,6 +135,8 @@ export function PlayerProvider({ children }) {
   const retryRef = useRef(null);
   const volumeRef = useRef(loadVolume());
   const mutedRef = useRef(loadMuted());
+  const stallTimerRef = useRef(null);
+  const stallRetryCountRef = useRef(0);
 
   // The last station is restored paused — not played. Browsers block autoplay
   // with sound until a user gesture, so trying to play on mount would just
@@ -148,6 +150,29 @@ export function PlayerProvider({ children }) {
   const [playlist, setPlaylist] = useState([]);
   const [index, setIndex] = useState(-1);
   const [favorites, setFavorites] = useState(loadFavorites);
+
+  const clearStallTimer = useCallback(() => {
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = null;
+    }
+  }, []);
+
+  const handleStallTimeout = useCallback(() => {
+    clearStallTimer();
+    const station = stationRef.current || current;
+    if (!station) return;
+    if (stallRetryCountRef.current === 0) {
+      stallRetryCountRef.current = 1;
+      if (retryRef.current) {
+        retryRef.current(station);
+      }
+    } else {
+      setIsPlaying(false);
+      setError("Stream stalled");
+      setStatus("error");
+    }
+  }, [clearStallTimer, current]);
 
   // Persist favorites
   useEffect(() => {
@@ -202,20 +227,37 @@ export function PlayerProvider({ children }) {
       const onPlay = () => setIsPlaying(true);
 
       const onPause = () => {
+        clearStallTimer();
         setIsPlaying(false);
         setStatus((prev) => (prev === "error" ? "error" : "idle"));
       };
 
       const onPlaying = () => {
+        clearStallTimer();
+        stallRetryCountRef.current = 0;
         tryingCorsRef.current = false;
         const ctx = ctxRef.current;
         if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
         setStatus("connected");
       };
 
-      const onWaiting = () => setStatus("connecting");
+      const onStall = () => {
+        setStatus("connecting");
+        if (!stallTimerRef.current) {
+          stallTimerRef.current = setTimeout(handleStallTimeout, 15000);
+        }
+      };
+
+      const onWaiting = onStall;
+      const onStalled = onStall;
+
+      const onEnded = () => {
+        if (stoppingRef.current) return;
+        handleStallTimeout();
+      };
 
       const onError = () => {
+        clearStallTimer();
         if (stoppingRef.current) return;
         if (handleCorsFailure()) return;
         setIsPlaying(false);
@@ -227,6 +269,8 @@ export function PlayerProvider({ children }) {
       audio.addEventListener("pause", onPause);
       audio.addEventListener("playing", onPlaying);
       audio.addEventListener("waiting", onWaiting);
+      audio.addEventListener("stalled", onStalled);
+      audio.addEventListener("ended", onEnded);
       audio.addEventListener("error", onError);
 
       return () => {
@@ -234,10 +278,12 @@ export function PlayerProvider({ children }) {
         audio.removeEventListener("pause", onPause);
         audio.removeEventListener("playing", onPlaying);
         audio.removeEventListener("waiting", onWaiting);
+        audio.removeEventListener("stalled", onStalled);
+        audio.removeEventListener("ended", onEnded);
         audio.removeEventListener("error", onError);
       };
     },
-    [handleCorsFailure]
+    [clearStallTimer, handleCorsFailure, handleStallTimeout]
   );
 
   // A media element that has been routed into Web Audio cannot be un-routed,
@@ -302,6 +348,7 @@ export function PlayerProvider({ children }) {
 
   const startPlayback = useCallback(
     (station) => {
+      clearStallTimer();
       const url = station.streamUrl;
 
       stoppingRef.current = false;
@@ -365,7 +412,7 @@ export function PlayerProvider({ children }) {
         setStatus("error");
       });
     },
-    [connectAnalyser, destroyHls, handleCorsFailure, makeAudio]
+    [clearStallTimer, connectAnalyser, destroyHls, handleCorsFailure, makeAudio]
   );
 
   useEffect(() => {
@@ -375,10 +422,11 @@ export function PlayerProvider({ children }) {
   // Unmount cleanup
   useEffect(() => {
     return () => {
+      clearStallTimer();
       if (unbindRef.current) unbindRef.current();
       if (audioRef.current) audioRef.current.pause();
     };
-  }, []);
+  }, [clearStallTimer]);
 
   const isCurrent = useCallback(
     (station) => {
@@ -443,6 +491,7 @@ export function PlayerProvider({ children }) {
   }, [current, isPlaying, startPlayback]);
 
   const stop = useCallback(() => {
+    clearStallTimer();
     stoppingRef.current = true;
     tryingCorsRef.current = false;
     destroyHls();
@@ -463,7 +512,7 @@ export function PlayerProvider({ children }) {
     } catch {
       /* ignore */
     }
-  }, [destroyHls]);
+  }, [clearStallTimer, destroyHls]);
 
   const next = useCallback(() => {
     if (playlist.length === 0) return;
