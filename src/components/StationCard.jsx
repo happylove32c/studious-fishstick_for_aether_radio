@@ -8,36 +8,26 @@ export default function StationCard({ number, station, playlist, genre }) {
     usePlayer();
   const navigate = useNavigate();
 
-  const name = station.name ?? station.title ?? "Untitled";
-  const streamUrl = station.streamUrl ?? station.url ?? station.stream;
-
-  const resolved = { ...station, name, genre, streamUrl };
-  const isCurrentStation = isCurrent(resolved);
+  const isCurrentStation = isCurrent(station);
   const live = isCurrentStation && isPlaying && status === "connected";
-  const fav = isFavorite(resolved);
+  const fav = isFavorite(station);
 
-  const color = getGenreColor(genre);
+  const cardGenre = genre || station.genre;
+  const color = getGenreColor(cardGenre);
   const ink = readableOn(color);
 
   const handleClick = () => {
-    const resolvedList = (playlist || []).map((s) => ({
-      ...s,
-      name: s.name ?? s.title ?? "Untitled",
-      genre: s.genre?.trim() || genre || "Unknown",
-      streamUrl: s.streamUrl ?? s.url ?? s.stream,
-    }));
-
     if (isCurrentStation && status !== "error") {
       navigate("/now-playing");
     } else {
-      play(resolved, resolvedList);
+      play(station, playlist || [station]);
       navigate("/now-playing");
     }
   };
 
   const handleFav = (e) => {
     e.stopPropagation();
-    toggleFavorite(resolved);
+    toggleFavorite(station);
   };
 
   // --g: genre colour, --gb: same colour at 60% for the resting border,
@@ -78,10 +68,10 @@ export default function StationCard({ number, station, playlist, genre }) {
             Station
           </p>
           <h2 className="line-clamp-2 break-words text-base font-black uppercase leading-tight tracking-[-0.03em] sm:text-2xl sm:leading-7 md:text-3xl md:leading-8">
-            {name}
+            {station.name}
           </h2>
           <p className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.25em] opacity-80 sm:mt-2 sm:text-[10px] sm:tracking-[0.3em]">
-            {genre || "Unknown"}
+            {cardGenre}
           </p>
         </div>
 

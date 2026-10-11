@@ -2,8 +2,35 @@ import { useCallback, useEffect, useState } from "react";
 import { StationsContext } from "./StationsContextDef";
 
 const API = "https://laughing-barnacle-ashn.onrender.com/stations";
-const CACHE_KEY = "aether:stations:v1";
+const CACHE_KEY = "aether:stations:v2";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// ---------------------------------------------------------------------------
+// Normalisation helpers
+// ---------------------------------------------------------------------------
+
+function normalizeStation(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const streamUrl = raw.streamUrl ?? raw.url ?? raw.stream;
+  if (!streamUrl) return null;
+  const name = raw.name ?? raw.title ?? "Untitled";
+  const genre =
+    typeof raw.genre === "string" && raw.genre.trim()
+      ? raw.genre.trim()
+      : "Unknown";
+
+  return {
+    ...raw,
+    name,
+    streamUrl,
+    genre,
+  };
+}
+
+function normalizeStations(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(normalizeStation).filter(Boolean);
+}
 
 // ---------------------------------------------------------------------------
 // localStorage helpers – every access wrapped in try/catch
@@ -21,7 +48,10 @@ function readCache() {
       Array.isArray(parsed.data) &&
       parsed.data.length > 0
     ) {
-      return parsed;
+      const normalized = normalizeStations(parsed.data);
+      if (normalized.length > 0) {
+        return { ts: parsed.ts, data: normalized };
+      }
     }
     // Invalid shape – discard
     localStorage.removeItem(CACHE_KEY);
@@ -86,7 +116,8 @@ export function StationsProvider({ children }) {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data;
+    const list = Array.isArray(data) ? data : data?.stations || [];
+    return normalizeStations(list);
   }, []);
 
   // Initial / stale-refresh effect

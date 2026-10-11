@@ -13,7 +13,7 @@ export default function GenrePage() {
   const color = getGenreColor(genre);
 
   const filtered = stations.filter(
-    (s) => (s.genre?.trim() || "Unknown") === genre
+    (s) => s.genre.toLowerCase() === genre?.toLowerCase()
   );
 
   return (

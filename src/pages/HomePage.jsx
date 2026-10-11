@@ -7,15 +7,16 @@ function HomePage() {
   const { stations, loading, error, reload } = useStations();
   const { current } = usePlayer();
 
-  // Group stations by genre
-  const genres = Object.entries(
-    stations.reduce((acc, station) => {
-      const key = station.genre?.trim() || "Unknown";
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(station);
-      return acc;
-    }, {})
-  ).map(([genre, list]) => ({ genre, count: list.length }));
+  // Group genres case-insensitively (key = lowercase, display = first-seen casing)
+  const genresMap = new Map();
+  for (const station of stations) {
+    const key = station.genre.toLowerCase();
+    if (!genresMap.has(key)) {
+      genresMap.set(key, { genre: station.genre, count: 0 });
+    }
+    genresMap.get(key).count += 1;
+  }
+  const genres = Array.from(genresMap.values());
 
   return (
     <div className="min-h-screen bg-black font-jetbrains">

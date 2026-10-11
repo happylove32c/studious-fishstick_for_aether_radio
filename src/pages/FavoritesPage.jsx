@@ -73,23 +73,15 @@ export default function FavoritesPage() {
 
         {!loading && favoriteStations.length > 0 && (
           <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-            {favoriteStations.map((s, i) => {
-              // Build the playlist per-station from the whole favorites list,
-              // so prev/next on the player cycles through favorites.
-              const genre = s.genre?.trim() || "Unknown";
-              return (
-                <StationCard
-                  key={s._id || i}
-                  number={String(i + 1).padStart(3, "0")}
-                  station={s}
-                  playlist={favoriteStations.map((fs) => ({
-                    ...fs,
-                    genre: fs.genre?.trim() || "Unknown",
-                  }))}
-                  genre={genre}
-                />
-              );
-            })}
+            {favoriteStations.map((s, i) => (
+              <StationCard
+                key={s._id || i}
+                number={String(i + 1).padStart(3, "0")}
+                station={s}
+                playlist={favoriteStations}
+                genre={s.genre}
+              />
+            ))}
           </div>
         )}
       </section>

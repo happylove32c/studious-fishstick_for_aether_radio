@@ -7,7 +7,7 @@ function GenreCard({ number, genre, description }) {
   const { current, isPlaying, status } = usePlayer();
   const isCurrentGenre =
     Boolean(current?.genre) &&
-    current.genre.trim().toLowerCase() === (genre?.trim().toLowerCase() || "");
+    current.genre.toLowerCase() === genre?.toLowerCase();
   const live = isCurrentGenre && isPlaying && status === "connected";
 
   const color = getGenreColor(genre);

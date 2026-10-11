@@ -360,10 +360,8 @@ export default function NowPlayingPage() {
   // -------------------------------------------------------------------------
   // Derived values
   // -------------------------------------------------------------------------
-  const genre = current.genre || "Unknown";
-  const backTo = current.genre
-    ? `/genre/${encodeURIComponent(current.genre)}`
-    : "/";
+  const genre = current.genre;
+  const backTo = genre ? `/genre/${encodeURIComponent(genre)}` : "/";
 
   const freq = getFrequency(current);
   const freqStr = freq.toFixed(1);
