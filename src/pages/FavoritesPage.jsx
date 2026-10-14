@@ -1,3 +1,4 @@
+import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import StationCard from "../components/StationCard";
@@ -11,42 +12,42 @@ export default function FavoritesPage() {
   const favoriteStations = stations.filter((s) => isFavorite(s));
 
   return (
-    <div className="min-h-screen bg-black font-jetbrains">
+    <div className="min-h-screen bg-cream font-jetbrains text-ink">
       <Header />
-      <section
-        className={`px-4 py-10 sm:px-6 md:px-10 md:py-16 ${
-          current ? "pb-24 md:pb-24" : ""
+      <main
+        className={`px-4 py-8 sm:px-6 md:px-10 md:py-12 ${
+          current ? "pb-32 md:pb-36" : "pb-16"
         }`}
       >
         <Link
           to="/"
-          className="mb-8 inline-block text-[11px] uppercase tracking-[0.35em] text-white/60 hover:text-white"
+          className="mb-6 inline-flex items-center gap-1.5 rounded-pill border-2 border-ink bg-panel px-3.5 py-1 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
         >
           ← Back
         </Link>
 
-        <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/50">
-          Presets
+        <p className="label font-bold uppercase text-ink-muted">
+          Preset Stations
         </p>
 
-        <h1 className="text-5xl font-black uppercase leading-none tracking-[-0.06em] text-white md:text-8xl">
+        <h1 className="font-fredoka text-5xl font-bold uppercase leading-none tracking-tight text-ink sm:text-7xl md:text-8xl">
           Favorites
         </h1>
 
         {error && stations.length === 0 ? (
-          <div className="mt-4 flex items-center gap-3">
-            <span className="text-[11px] uppercase tracking-[0.35em] text-red-400">
+          <div className="mt-4 flex max-w-md items-center justify-between gap-3 rounded-chunky border-2 border-status-red-text bg-[#FEE2E2] p-3 text-status-red-text shadow-hard-sm">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider">
               Error: {error}
             </span>
             <button
               onClick={reload}
-              className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+              className="shrink-0 rounded-pill border-2 border-status-red-text bg-cream px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider shadow-hard-sm hover:bg-status-red hover:text-cream transition-colors"
             >
               Retry
             </button>
           </div>
         ) : (
-          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
+          <p className="mt-3 font-mono text-xs font-bold uppercase tracking-wider text-ink-muted sm:text-sm">
             {loading
               ? "Scanning presets…"
               : error
@@ -57,22 +58,30 @@ export default function FavoritesPage() {
           </p>
         )}
 
+        {/* Empty state with cartoon personality */}
         {!loading && favoriteStations.length === 0 && (
-          <div className="mt-12 border border-white/10 bg-white/[0.03] p-8 text-center">
-            <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
-              No presets saved yet
+          <div className="mx-auto mt-8 max-w-md rounded-panel border-3 border-ink bg-panel p-8 text-center shadow-hard sm:mt-14 sm:p-12">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-panel border-3 border-ink bg-[#FFD166] text-ink shadow-hard">
+              <Heart className="h-10 w-10 text-ink fill-current" strokeWidth={2.5} />
+            </div>
+            <h2 className="font-fredoka text-2xl font-bold uppercase text-ink sm:text-3xl">
+              No presets saved
+            </h2>
+            <p className="mt-2 font-mono text-xs font-medium text-ink-muted sm:text-sm">
+              Tap the heart sticker on any station to pin it to your quick-dial favorites.
             </p>
             <Link
               to="/"
-              className="mt-6 inline-block border border-white/20 px-6 py-3 text-[11px] font-bold uppercase tracking-[0.25em] text-white hover:bg-white hover:text-black transition-colors"
+              className="mt-6 inline-flex items-center justify-center rounded-pill border-3 border-ink bg-[#FF6B6B] px-6 py-3 font-fredoka text-sm font-bold uppercase tracking-wider text-ink shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
             >
               Browse stations
             </Link>
           </div>
         )}
 
+        {/* Saved stations grid */}
         {!loading && favoriteStations.length > 0 && (
-          <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+          <div className="mt-8 sm:mt-12 grid grid-cols-1 min-[340px]:grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             {favoriteStations.map((s, i) => (
               <StationCard
                 key={s._id || i}
@@ -84,7 +93,7 @@ export default function FavoritesPage() {
             ))}
           </div>
         )}
-      </section>
+      </main>
     </div>
   );
 }

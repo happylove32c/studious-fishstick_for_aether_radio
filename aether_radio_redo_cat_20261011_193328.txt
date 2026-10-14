@@ -1,0 +1,3225 @@
+# FOLDER CAT: aether_radio_redo
+# Generated : 2026-10-11T18:33:28.414Z  |  random-tools-agent
+# Included  : 30 files, 96.7 KB, approx 24,761 tokens (bytes/4)
+# Included files are complete. Nothing inside a file is truncated.
+
+## FILE LIST
+.gitignore   [.gitignore]
+eslint.config.js   [eslint.config.js]
+index.html   [index.html]
+package.json   [package.json]
+postcss.config.js   [postcss.config.js]
+  favicon.svg   [public/favicon.svg]
+README.md   [README.md]
+  App.jsx   [src/App.jsx]
+    GenreCard.jsx   [src/components/GenreCard.jsx]
+    Header.jsx   [src/components/Header.jsx]
+    NetworkIndicator.jsx   [src/components/NetworkIndicator.jsx]
+    PlayerBar.jsx   [src/components/PlayerBar.jsx]
+    StationCard.jsx   [src/components/StationCard.jsx]
+    PlayerContext.jsx   [src/context/PlayerContext.jsx]
+    PlayerContextDef.js   [src/context/PlayerContextDef.js]
+    StationsContext.jsx   [src/context/StationsContext.jsx]
+    StationsContextDef.js   [src/context/StationsContextDef.js]
+    usePlayer.js   [src/context/usePlayer.js]
+    useStations.js   [src/context/useStations.js]
+    usePlayerShortcuts.js   [src/hooks/usePlayerShortcuts.js]
+    useSpeedTest.js   [src/hooks/useSpeedTest.js]
+  index.css   [src/index.css]
+  main.jsx   [src/main.jsx]
+    FavoritesPage.jsx   [src/pages/FavoritesPage.jsx]
+    GenrePage.jsx   [src/pages/GenrePage.jsx]
+    HomePage.jsx   [src/pages/HomePage.jsx]
+    NowPlayingPage.jsx   [src/pages/NowPlayingPage.jsx]
+    genreColors.js   [src/utils/genreColors.js]
+tailwind.config.js   [tailwind.config.js]
+vite.config.js   [vite.config.js]
+
+## LEFT OUT
+- .git/  (junk folder)
+- dist/  (junk folder)
+- node_modules/  (junk folder)
+- package-lock.json (lockfile)
+
+
+## FILE CONTENTS
+
+===== .gitignore =====
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+===== eslint.config.js =====
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+])
+
+
+===== index.html =====
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aether FM</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800;900&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
+
+===== package.json =====
+{
+  "name": "aether_radio_redo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "hls.js": "^1.7.3",
+    "lucide-react": "^1.52.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.6.1",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.3.0"
+  }
+}
+
+
+===== postcss.config.js =====
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+===== public/favicon.svg =====
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <circle cx="16" cy="16" r="14" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="16" cy="16" r="5" fill="#ffffff"/>
+  <line x1="16" y1="16" x2="23" y2="9" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
+
+
+===== README.md =====
+# Aether FM
+
+Aether FM is a web radio station player with a tactile hardware-inspired interface.
+It organizes online live audio transmissions across diverse genres and frequency bands.
+The player supports native audio streams as well as adaptive HLS live broadcast feeds.
+Users can discover stations, browse curated genres, and tune into high-fidelity streams.
+Features include a spectrogram equalizer, custom frequency dial, and favorite presets.
+Station metadata is cached locally for fast startup with background freshness updates.
+The responsive interface adapts seamlessly from compact mobile viewports to wide screens.
+Built with React 19, Vite, Tailwind CSS, and Lucide icons for crisp typography and design.
+Run `npm run dev` to start the local development server or `npm run build` to bundle.
+Enjoy continuous, low-latency live radio broadcasts with precise audio controls.
+
+
+===== src/App.jsx =====
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import GenrePage from "./pages/GenrePage";
+import NowPlayingPage from "./pages/NowPlayingPage";
+import PlayerBar from "./components/PlayerBar";
+import { StationsProvider } from "./context/StationsContext";
+import { PlayerProvider } from "./context/PlayerContext";
+import { usePlayerShortcuts } from "./hooks/usePlayerShortcuts";
+import FavoritesPage from "./pages/FavoritesPage";
+
+function KeyboardShortcuts() {
+  usePlayerShortcuts();
+  return null;
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <StationsProvider>
+        <PlayerProvider>
+          <KeyboardShortcuts />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/genre/:genre" element={<GenrePage />} />
+            <Route path="/now-playing" element={<NowPlayingPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
+          </Routes>
+          <PlayerBar />
+        </PlayerProvider>
+      </StationsProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+===== src/components/GenreCard.jsx =====
+import { ArrowRight, AudioLines } from "lucide-react";
+import { Link } from "react-router-dom";
+import { usePlayer } from "../context/usePlayer";
+import { getGenreColor, readableOn } from "../utils/genreColors";
+
+function GenreCard({ number, genre, description }) {
+  const { current, isPlaying, status } = usePlayer();
+  const isCurrentGenre =
+    Boolean(current?.genre) &&
+    current.genre.toLowerCase() === genre?.toLowerCase();
+  const live = isCurrentGenre && isPlaying && status === "connected";
+
+  const color = getGenreColor(genre);
+  const ink = readableOn(color);
+
+  // --g: genre colour, --gb: same colour at 60% for the resting border,
+  // --gt: text colour that stays readable on the filled (hover) background.
+  return (
+    <Link
+      to={`/genre/${encodeURIComponent(genre)}`}
+      style={{ "--g": color, "--gb": `${color}99`, "--gt": ink }}
+      className={`group relative flex aspect-square flex-col justify-between overflow-hidden border border-[color:var(--gb)] p-3 text-white transition-colors duration-300 hover:border-[color:var(--g)] hover:bg-[color:var(--g)] hover:text-[color:var(--gt)] sm:p-5 md:p-6 ${
+        live
+          ? "bg-white/[0.08] shadow-[inset_0_0_0_1px_var(--g)]"
+          : isCurrentGenre
+          ? "bg-white/[0.07]"
+          : "bg-white/[0.03]"
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <span className="text-[10px] tracking-[0.25em] opacity-60 sm:tracking-[0.3em]">
+          {number}
+        </span>
+
+        {live ? (
+          <AudioLines className="h-3.5 w-3.5 animate-pulse sm:h-4 sm:w-4" />
+        ) : (
+          <span className="h-2 w-2 bg-[color:var(--g)] transition-colors duration-300 group-hover:bg-current" />
+        )}
+      </div>
+
+      <div className="my-auto py-1">
+        <p className="mb-1 text-[9px] uppercase tracking-[0.3em] opacity-60 sm:mb-2 sm:text-[10px] sm:tracking-[0.35em]">
+          Genre
+        </p>
+
+        <h2 className="line-clamp-2 break-words text-base font-black uppercase leading-tight tracking-[-0.03em] sm:text-2xl sm:leading-7 md:text-3xl md:leading-8">
+          {genre}
+        </h2>
+
+        <p className="mt-1.5 line-clamp-2 max-w-xs text-[10px] leading-4 opacity-70 sm:mt-2.5 sm:text-[11px] sm:leading-4 md:text-xs md:leading-5">
+          {description}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2.5 sm:gap-3.5">
+        <div className="h-px bg-current opacity-20" />
+
+        <div className="flex items-center justify-between">
+          <span
+            className={`text-[9px] uppercase tracking-[0.2em] sm:text-[10px] sm:tracking-[0.25em] ${
+              live ? "font-bold" : "opacity-60"
+            }`}
+          >
+            {live ? "On Air" : "Explore"}
+          </span>
+
+          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 sm:h-4 sm:w-4" />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export default GenreCard;
+
+===== src/components/Header.jsx =====
+import { Radio, Headphones } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { usePlayer } from "../context/usePlayer";
+import NetworkIndicator from "./NetworkIndicator";
+
+export default function Header() {
+  const { isPlaying, status } = usePlayer();
+  const live = isPlaying && status === "connected";
+  const { pathname } = useLocation();
+
+  const navItem = (to, label) => {
+    const active =
+      pathname === to || (to === "/" && pathname.startsWith("/genre"));
+    return (
+      <Link
+        to={to}
+        className={`hidden items-center gap-1.5 text-xs uppercase tracking-[0.25em] transition-colors sm:inline-flex ${
+          active ? "text-white" : "text-white/40 hover:text-white"
+        }`}
+      >
+        <span>{label}</span>
+      </Link>
+    );
+  };
+
+  return (
+    <header className="sticky top-0 z-50 flex items-center justify-between gap-3 border-b border-white/20 px-4 py-4 backdrop-blur-md sm:px-6 sm:py-5 md:px-10">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <Headphones className="h-5 w-5 shrink-0 text-white/40 sm:h-6 sm:w-6" />
+
+        <Link
+          to="/"
+          className="truncate text-[11px] font-bold tracking-[0.25em] text-white/40 transition-colors hover:text-white sm:text-xs sm:tracking-[0.35em]"
+        >
+          AETHER FM
+        </Link>
+
+        <span className="hidden h-px w-10 shrink-0 bg-white/30 sm:block" />
+
+        {navItem("/", "Stations")}
+        {navItem("/favorites", "Favorites")}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2.5 text-[11px] uppercase tracking-[0.2em] text-white sm:gap-4 sm:text-xs sm:tracking-[0.25em]">
+        <NetworkIndicator />
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Radio
+            className={`h-3.5 w-3.5 ${live ? "animate-pulse text-white" : "text-white/30"}`}
+          />
+          <span>{live ? "Live" : "Off air"}</span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+===== src/components/NetworkIndicator.jsx =====
+import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { Wifi, WifiOff, X } from "lucide-react";
+import { useSpeedTest } from "../hooks/useSpeedTest";
+
+const STATUS_GREEN = "#00ff41";
+const STATUS_YELLOW = "#facc15";
+const STATUS_RED = "#ef4444";
+const STATUS_GRAY = "#666666";
+
+function getSpeedColor(mbps) {
+  if (mbps === null || mbps === undefined) return STATUS_GRAY;
+  if (mbps >= 20) return STATUS_GREEN;
+  if (mbps >= 5) return STATUS_YELLOW;
+  return STATUS_RED;
+}
+
+function getNetworkInfo() {
+  const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+  const connection =
+    typeof navigator !== "undefined"
+      ? navigator.connection ||
+        navigator.mozConnection ||
+        navigator.webkitConnection
+      : null;
+
+  if (!isOnline) {
+    return {
+      level: 1,
+      color: STATUS_GRAY,
+      speedText: "Offline",
+      subText: "No Connection",
+      downlink: 0,
+      effectiveType: "offline",
+      online: false,
+    };
+  }
+
+  if (!connection || connection.downlink === undefined) {
+    return {
+      level: 4,
+      color: STATUS_GREEN,
+      speedText: "Online",
+      subText: "Active Network",
+      downlink: null,
+      effectiveType: null,
+      online: true,
+    };
+  }
+
+  const downlink = connection.downlink;
+  const effectiveType = connection.effectiveType
+    ? connection.effectiveType.toUpperCase()
+    : "NETWORK";
+
+  let level;
+  let color;
+
+  if (downlink >= 20) {
+    level = 4;
+    color = STATUS_GREEN;
+  } else if (downlink >= 5) {
+    level = 3;
+    color = STATUS_YELLOW;
+  } else {
+    level = 2;
+    color = STATUS_RED;
+  }
+
+  return {
+    level,
+    color,
+    speedText: `${downlink.toFixed(1)} Mbps`,
+    subText: effectiveType,
+    downlink,
+    effectiveType,
+    online: true,
+  };
+}
+
+function isSameNetwork(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.online === b.online &&
+    a.level === b.level &&
+    a.color === b.color &&
+    a.speedText === b.speedText &&
+    a.subText === b.subText &&
+    a.downlink === b.downlink &&
+    a.effectiveType === b.effectiveType
+  );
+}
+
+export default function NetworkIndicator() {
+  const [network, setNetwork] = useState(getNetworkInfo);
+  const [showModal, setShowModal] = useState(false);
+
+  const {
+    run: runSpeedTest,
+    result: testResult,
+    status: testStatus,
+    error: testError,
+    abort: abortSpeedTest,
+  } = useSpeedTest();
+
+  const updateNetwork = useCallback(() => {
+    const next = getNetworkInfo();
+    setNetwork((prev) => (isSameNetwork(prev, next) ? prev : next));
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        abortSpeedTest();
+      } else {
+        updateNetwork();
+      }
+    };
+
+    const connection =
+      typeof navigator !== "undefined"
+        ? navigator.connection ||
+          navigator.mozConnection ||
+          navigator.webkitConnection
+        : null;
+
+    window.addEventListener("online", updateNetwork);
+    window.addEventListener("offline", updateNetwork);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    if (connection && typeof connection.addEventListener === "function") {
+      connection.addEventListener("change", updateNetwork);
+    }
+
+    return () => {
+      abortSpeedTest();
+      window.removeEventListener("online", updateNetwork);
+      window.removeEventListener("offline", updateNetwork);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (connection && typeof connection.removeEventListener === "function") {
+        connection.removeEventListener("change", updateNetwork);
+      }
+    };
+  }, [updateNetwork, abortSpeedTest]);
+
+  const handleOpenModal = () => {
+    setShowModal(true);
+    runSpeedTest();
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    abortSpeedTest();
+  };
+
+  const { level, color, speedText, subText, online } = network;
+
+  // Render measured value
+  const renderMeasuredText = () => {
+    if (testStatus === "running") {
+      return <span className="text-[#facc15] font-bold">Testing…</span>;
+    }
+    if (testStatus === "done" && testResult) {
+      return (
+        <span
+          className="font-bold"
+          style={{ color: getSpeedColor(testResult.mbps) }}
+        >
+          {testResult.mbps.toFixed(1)} Mbps
+        </span>
+      );
+    }
+    if (testStatus === "error") {
+      return <span className="text-red-400 font-bold">Test failed</span>;
+    }
+    return <span className="text-white/40">—</span>;
+  };
+
+  const modalContent = showModal ? (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm sm:hidden"
+      onClick={handleCloseModal}
+    >
+      <div
+        className="w-full max-w-xs border border-white/20 bg-[#111] p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            {online ? (
+              <Wifi className="h-4 w-4" style={{ color }} />
+            ) : (
+              <WifiOff className="h-4 w-4" style={{ color }} />
+            )}
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-white">
+              Network Link
+            </span>
+          </div>
+          <button
+            onClick={handleCloseModal}
+            className="text-white/40 hover:text-white transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3 py-2 text-center">
+          <div className="flex justify-center items-end gap-1 h-6">
+            <span
+              className="w-1.5 h-2"
+              style={{
+                backgroundColor:
+                  level >= 1 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="w-1.5 h-3"
+              style={{
+                backgroundColor:
+                  level >= 2 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="w-1.5 h-[18px]"
+              style={{
+                backgroundColor:
+                  level >= 3 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="w-1.5 h-6"
+              style={{
+                backgroundColor:
+                  level >= 4 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+          </div>
+
+          <div className="space-y-2 py-1 text-left">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <span className="text-[9px] uppercase tracking-[0.2em] text-white/40">
+                Reported:
+              </span>
+              <span
+                className="text-[10px] font-bold uppercase tracking-[0.15em]"
+                style={{ color }}
+              >
+                {speedText} · {subText}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase tracking-[0.2em] text-white/40">
+                Measured:
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.15em]">
+                {renderMeasuredText()}
+              </span>
+            </div>
+          </div>
+
+          {testStatus === "error" && testError && (
+            <p className="text-[8px] uppercase tracking-[0.15em] text-red-400">
+              {testError}
+            </p>
+          )}
+        </div>
+
+        <button
+          onClick={handleCloseModal}
+          className="mt-4 w-full border border-white/20 py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-white hover:bg-white hover:text-black transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {/* Indicator button with tooltip on desktop */}
+      <div className="relative group flex items-center">
+        <button
+          type="button"
+          onClick={handleOpenModal}
+          className="flex items-center gap-1.5 border border-white/15 bg-white/[0.04] px-2 py-1 transition-colors hover:border-white/40 hover:bg-white/[0.08]"
+          title={`${speedText} · ${subText}`}
+          aria-label="Network status"
+        >
+          {online ? (
+            <Wifi className="h-3.5 w-3.5 shrink-0" style={{ color }} />
+          ) : (
+            <WifiOff className="h-3.5 w-3.5 shrink-0" style={{ color }} />
+          )}
+
+          {/* 4-bar visual signal stack */}
+          <div className="flex items-end gap-[2px] h-3.5 pb-0.5">
+            <span
+              className="w-[2px] h-1.5 transition-colors"
+              style={{
+                backgroundColor: level >= 1 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="w-[2px] h-2 transition-colors"
+              style={{
+                backgroundColor: level >= 2 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="w-[2px] h-2.5 transition-colors"
+              style={{
+                backgroundColor: level >= 3 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+            <span
+              className="w-[2px] h-3.5 transition-colors"
+              style={{
+                backgroundColor: level >= 4 ? color : "rgba(255,255,255,0.15)",
+              }}
+            />
+          </div>
+        </button>
+
+        {/* Desktop Tooltip (sm and up) */}
+        <div className="pointer-events-none absolute right-0 top-full mt-2 hidden z-50 min-w-[190px] border border-white/20 bg-[#111] p-3 shadow-xl sm:group-hover:block">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-white/40">
+                Reported
+              </span>
+              <span
+                className="text-[10px] font-bold uppercase tracking-[0.15em]"
+                style={{ color }}
+              >
+                {speedText} · {subText}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[8px] uppercase tracking-[0.2em] text-white/40">
+                Measured
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.15em]">
+                {renderMeasuredText()}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Modal (rendered in document.body via Portal) */}
+      {modalContent && typeof document !== "undefined"
+        ? createPortal(modalContent, document.body)
+        : null}
+    </>
+  );
+}
+
+
+===== src/components/PlayerBar.jsx =====
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Pause, Play, SkipBack, SkipForward, Square, Volume2 } from "lucide-react";
+import { usePlayer } from "../context/usePlayer";
+import { getGenreColor, readableOn } from "../utils/genreColors";
+
+export default function PlayerBar() {
+  const {
+    current,
+    isPlaying,
+    status,
+    toggle,
+    stop,
+    next,
+    prev,
+    playlist,
+    volume,
+    setVolume,
+    error,
+  } = usePlayer();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!current || location.pathname === "/now-playing") return null;
+
+  // Same theme variables as the genre cards and the Now Playing page.
+  const accent = getGenreColor(current.genre);
+  const ink = readableOn(accent);
+  const live = isPlaying && status === "connected";
+
+  const canSkip = playlist.length > 1;
+
+  const handleBarClick = () => {
+    navigate("/now-playing");
+  };
+
+  // Prevent controls from triggering bar navigation
+  const stopNav = (e) => e.stopPropagation();
+
+  return (
+    <div
+      onClick={handleBarClick}
+      style={{ "--g": accent, "--gb": `${accent}99`, "--gt": ink }}
+      className="fixed bottom-0 left-0 right-0 z-50 cursor-pointer overflow-hidden border-t border-[color:var(--gb)] bg-black/95 transition-colors hover:border-[color:var(--g)]"
+    >
+      {/*
+        Ambient blob. Only `transform` is animated (compositor-only, no layout,
+        no paint, no blur filter), so it stays cheap on low-end phones.
+        It glides while the station is live; when paused or connecting it
+        freezes and dims. Peak alpha is 30%: measured against every genre
+        colour, that keeps both the white text and the accent-coloured genre
+        line at 4.5:1 contrast or better (40% failed on pink genres).
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <div
+          className="blob-glide absolute left-0 top-1/2 h-[260%] w-1/2"
+          style={{
+            background: `radial-gradient(closest-side, ${accent}4c, ${accent}00)`,
+            opacity: live ? 1 : 0.35,
+            animationPlayState: live ? "running" : "paused",
+            transition: "opacity 700ms ease",
+          }}
+        />
+      </div>
+
+      <div className="relative flex items-center gap-3 px-4 py-4 sm:gap-4 sm:px-6 md:px-10">
+        {/* Transport cluster */}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Prev */}
+          <button
+            onClick={(e) => {
+              stopNav(e);
+              prev();
+            }}
+            disabled={!canSkip}
+            className="flex h-10 w-10 shrink-0 items-center justify-center border border-[color:var(--gb)] text-white transition-colors hover:border-[color:var(--g)] hover:bg-[color:var(--g)] hover:text-[color:var(--gt)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[color:var(--gb)] disabled:hover:bg-transparent disabled:hover:text-white"
+            aria-label="Previous station"
+          >
+            <SkipBack className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Play / Pause */}
+          <button
+            onClick={(e) => {
+              stopNav(e);
+              toggle();
+            }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center bg-[color:var(--g)] text-[color:var(--gt)] transition-[filter] hover:brightness-110"
+            aria-label={isPlaying ? "Pause" : "Play"}
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </button>
+
+          {/* Next */}
+          <button
+            onClick={(e) => {
+              stopNav(e);
+              next();
+            }}
+            disabled={!canSkip}
+            className="flex h-10 w-10 shrink-0 items-center justify-center border border-[color:var(--gb)] text-white transition-colors hover:border-[color:var(--g)] hover:bg-[color:var(--g)] hover:text-[color:var(--gt)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[color:var(--gb)] disabled:hover:bg-transparent disabled:hover:text-white"
+            aria-label="Next station"
+          >
+            <SkipForward className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Station info - real Link for a11y */}
+        <Link
+          to="/now-playing"
+          onClick={stopNav}
+          className="min-w-0 flex-1 cursor-pointer"
+        >
+          <p className="truncate text-sm font-bold uppercase tracking-[0.15em] text-white">
+            {current.name}
+          </p>
+          <p
+            className="truncate text-[11px] font-bold uppercase tracking-[0.3em]"
+            style={{ color: error ? "#f87171" : accent }}
+          >
+            {error ? `Error: ${error}` : current.genre || "Live"}
+          </p>
+        </Link>
+
+        {/* Volume slider */}
+        <div onClick={stopNav} className="hidden items-center gap-2 md:flex">
+          <Volume2 className="h-4 w-4 text-white/60" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+            aria-label="Volume"
+            className="h-1 w-24"
+            style={{ accentColor: accent }}
+          />
+        </div>
+
+        {/* Stop */}
+        <button
+          onClick={(e) => {
+            stopNav(e);
+            stop();
+          }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center border border-[color:var(--gb)] text-white transition-colors hover:border-[color:var(--g)] hover:bg-[color:var(--g)] hover:text-[color:var(--gt)]"
+          aria-label="Stop"
+        >
+          <Square className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+===== src/components/StationCard.jsx =====
+import { ArrowRight, AudioLines, Heart, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { usePlayer } from "../context/usePlayer";
+import { getGenreColor, readableOn } from "../utils/genreColors";
+
+export default function StationCard({ number, station, playlist, genre }) {
+  const { play, isCurrent, status, isPlaying, isFavorite, toggleFavorite } =
+    usePlayer();
+  const navigate = useNavigate();
+
+  const isCurrentStation = isCurrent(station);
+  const live = isCurrentStation && isPlaying && status === "connected";
+  const fav = isFavorite(station);
+
+  const cardGenre = genre || station.genre;
+  const color = getGenreColor(cardGenre);
+  const ink = readableOn(color);
+
+  const handleClick = () => {
+    if (!isCurrentStation || status === "error") {
+      play(station, playlist || [station]);
+    }
+    navigate("/now-playing");
+  };
+
+  const handleFav = (e) => {
+    e.stopPropagation();
+    toggleFavorite(station);
+  };
+
+  // --g: genre colour, --gb: same colour at 60% for the resting border,
+  // --gt: text colour that stays readable on the filled (hover) background.
+  return (
+    // `group` lives on the WRAPPER. Hovering the heart (a child of the
+    // wrapper) therefore keeps the group "hovered", so the card body stays
+    // filled while your pointer is on the heart.
+    <div
+      style={{ "--g": color, "--gb": `${color}99`, "--gt": ink }}
+      className="group relative aspect-square w-full"
+    >
+      <button
+        onClick={handleClick}
+        className={`flex h-full w-full flex-col justify-between overflow-hidden border border-[color:var(--gb)] p-3 text-left text-white transition-colors duration-300 group-hover:border-[color:var(--g)] group-hover:bg-[color:var(--g)] group-hover:text-[color:var(--gt)] sm:p-5 md:p-6 ${
+          live
+            ? "bg-white/[0.08] shadow-[inset_0_0_0_1px_var(--g)]"
+            : isCurrentStation
+            ? "bg-white/[0.07]"
+            : "bg-white/[0.03]"
+        }`}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] tracking-[0.25em] opacity-60 sm:tracking-[0.3em]">
+              {number}
+            </span>
+            {live && (
+              <AudioLines className="h-3.5 w-3.5 animate-pulse sm:h-4 sm:w-4" />
+            )}
+          </div>
+          {/* Space reserved for the absolutely-positioned heart sibling. */}
+          <span className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
+        </div>
+
+        <div className="my-auto py-1">
+          <span className="block mb-1 text-[9px] uppercase tracking-[0.3em] opacity-60 sm:mb-2 sm:text-[10px] sm:tracking-[0.35em]">
+            Station
+          </span>
+          <span className="block line-clamp-2 break-words text-base font-black uppercase leading-tight tracking-[-0.03em] sm:text-2xl sm:leading-7 md:text-3xl md:leading-8">
+            {station.name}
+          </span>
+          <span className="block mt-1.5 text-[9px] font-bold uppercase tracking-[0.25em] opacity-80 sm:mt-2 sm:text-[10px] sm:tracking-[0.3em]">
+            {cardGenre}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-2.5 sm:gap-3.5">
+          <div className="h-px bg-current opacity-20" />
+
+          <div className="flex items-center justify-between">
+            <span
+              className={`text-[9px] uppercase tracking-[0.2em] sm:text-[10px] sm:tracking-[0.25em] ${
+                live ? "font-bold" : "opacity-60"
+              }`}
+            >
+              {live ? "Playing" : "Listen"}
+            </span>
+
+            {live ? (
+              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 sm:h-4 sm:w-4" />
+            ) : (
+              <Play className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 sm:h-4 sm:w-4" />
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/*
+        Heart — sibling of the card body, but INSIDE the group wrapper, so
+        hovering it keeps the card filled. It has no group-hover classes of
+        its own, so its appearance doesn't change with the card.
+      */}
+      <button
+        onClick={handleFav}
+        aria-pressed={fav}
+        aria-label={fav ? "Remove from favorites" : "Add to favorites"}
+        title={fav ? "Remove from favorites" : "Add to favorites"}
+        className={`absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center transition-colors sm:right-3 sm:top-3 sm:h-8 sm:w-8 ${
+          fav
+            ? "text-white hover:text-white"
+            : "text-white/60 hover:text-white"
+        }`}
+      >
+        <Heart
+          className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${fav ? "fill-current" : ""}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+===== src/context/PlayerContext.jsx =====
+import { useCallback, useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
+import { PlayerContext } from "./PlayerContextDef";
+
+// ---------------------------------------------------------------------------
+// Switches / helpers
+// ---------------------------------------------------------------------------
+
+// Set to false to go back to plain <audio> playback with no Web Audio at all.
+const ANALYSER_ENABLED = true;
+
+const FAVORITES_KEY = "aether_favorites";
+const VOLUME_KEY = "aether_volume";
+const MUTED_KEY = "aether_muted";
+const LAST_STATION_KEY = "aether_last_station";
+
+// url -> false once we learn the server sends no CORS headers.
+// Such streams still play, but the browser will not let us analyse them.
+const corsSupport = new Map();
+
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(favs) {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+  } catch {
+    /* quota / private-mode - ignore */
+  }
+}
+
+function loadVolume() {
+  try {
+    const raw = localStorage.getItem(VOLUME_KEY);
+    if (raw === null) return 0.8;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.8;
+  } catch {
+    return 0.8;
+  }
+}
+
+function loadMuted() {
+  try {
+    return localStorage.getItem(MUTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function loadLastStation() {
+  try {
+    const raw = localStorage.getItem(LAST_STATION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Minimal shape check — anything malformed is discarded.
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.streamUrl === "string" &&
+      parsed.streamUrl.length > 0
+    ) {
+      return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function saveLastStation(station) {
+  try {
+    if (!station || !station.streamUrl) {
+      localStorage.removeItem(LAST_STATION_KEY);
+      return;
+    }
+    localStorage.setItem(LAST_STATION_KEY, JSON.stringify(station));
+  } catch {
+    /* quota / private-mode - ignore */
+  }
+}
+
+function stationKey(station) {
+  return station?._id || station?.streamUrl || "";
+}
+
+function needsHls(url) {
+  if (!url) return false;
+  if (!url.includes(".m3u8")) return false;
+  const audio = document.createElement("audio");
+  return !audio.canPlayType("application/vnd.apple.mpegurl");
+}
+
+function deriveFormat(url) {
+  if (!url) return "LIVE STREAM";
+  const lower = url.toLowerCase();
+  if (lower.includes(".m3u8")) return "HLS LIVE STREAM";
+  if (lower.includes(".mp3")) return "MP3 LIVE STREAM";
+  if (lower.includes(".aac")) return "AAC LIVE STREAM";
+  if (lower.includes(".ogg")) return "OGG LIVE STREAM";
+  return "LIVE STREAM";
+}
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
+
+export function PlayerProvider({ children }) {
+  const audioRef = useRef(null);
+  const unbindRef = useRef(null);
+  const hlsRef = useRef(null);
+  const stoppingRef = useRef(false);
+  const hlsMediaRecoveredRef = useRef(false);
+  const hlsNetworkRecoveredRef = useRef(false);
+
+  // Web Audio
+  const ctxRef = useRef(null);
+  const analyserNodeRef = useRef(null);
+  const sourceRef = useRef(null);
+  // Exposed to the UI. Non-null ONLY while the current <audio> element is
+  // routed through the analyser (i.e. real audio data is available).
+  const analyserRef = useRef(null);
+
+  // Playback bookkeeping.
+  // Volume / mute refs read the same persisted values as the state below, so
+  // the very first <audio> element picks up the restored settings.
+  const tryingCorsRef = useRef(false);
+  const stationRef = useRef(null);
+  const retryRef = useRef(null);
+  const volumeRef = useRef(loadVolume());
+  const mutedRef = useRef(loadMuted());
+  const stallTimerRef = useRef(null);
+  const stallRetryCountRef = useRef(0);
+
+  // The last station is restored paused — not played. Browsers block autoplay
+  // with sound until a user gesture, so trying to play on mount would just
+  // fail silently and confuse the status badge.
+  const [current, setCurrent] = useState(loadLastStation);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolumeState] = useState(loadVolume);
+  const [muted, setMuted] = useState(loadMuted);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("idle"); // idle | connecting | connected | error
+  const [playlist, setPlaylist] = useState([]);
+  const [index, setIndex] = useState(-1);
+  const [favorites, setFavorites] = useState(loadFavorites);
+
+  const clearStallTimer = useCallback(() => {
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = null;
+    }
+  }, []);
+
+  const handleStallTimeout = useCallback(() => {
+    clearStallTimer();
+    const station = stationRef.current || current;
+    if (!station) return;
+    if (stallRetryCountRef.current === 0) {
+      stallRetryCountRef.current = 1;
+      if (retryRef.current) {
+        retryRef.current(station);
+      }
+    } else {
+      setIsPlaying(false);
+      setError("Stream stalled");
+      setStatus("error");
+    }
+  }, [clearStallTimer, current]);
+
+  // Persist favorites
+  useEffect(() => {
+    saveFavorites(favorites);
+  }, [favorites]);
+
+  // Persist volume
+  useEffect(() => {
+    try {
+      localStorage.setItem(VOLUME_KEY, String(volume));
+    } catch {
+      /* ignore */
+    }
+  }, [volume]);
+
+  // Persist muted
+  useEffect(() => {
+    try {
+      localStorage.setItem(MUTED_KEY, muted ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [muted]);
+
+  // Persist last station so reopening the app returns you to it, paused.
+  useEffect(() => {
+    saveLastStation(current);
+  }, [current]);
+
+  const destroyHls = useCallback(() => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+  }, []);
+
+  // If an attempt made with crossorigin="anonymous" fails, the server almost
+  // certainly lacks CORS headers. Remember that and retry as a plain element.
+  const handleCorsFailure = useCallback(() => {
+    if (!tryingCorsRef.current) return false;
+    tryingCorsRef.current = false;
+    const station = stationRef.current;
+    if (!station) return false;
+    corsSupport.set(station.streamUrl, false);
+    if (retryRef.current) retryRef.current(station);
+    return true;
+  }, []);
+
+  // Wire the listeners for one <audio> element. Returns an unbind function.
+  const bindAudio = useCallback(
+    (audio) => {
+      const onPlay = () => setIsPlaying(true);
+
+      const onPause = () => {
+        clearStallTimer();
+        setIsPlaying(false);
+        setStatus((prev) => (prev === "error" ? "error" : "idle"));
+      };
+
+      const onPlaying = () => {
+        clearStallTimer();
+        stallRetryCountRef.current = 0;
+        tryingCorsRef.current = false;
+        const ctx = ctxRef.current;
+        if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+        setStatus("connected");
+      };
+
+      const onStall = () => {
+        setStatus("connecting");
+        if (!stallTimerRef.current) {
+          stallTimerRef.current = setTimeout(handleStallTimeout, 15000);
+        }
+      };
+
+      const onWaiting = onStall;
+      const onStalled = onStall;
+
+      const onEnded = () => {
+        if (stoppingRef.current) return;
+        handleStallTimeout();
+      };
+
+      const onError = () => {
+        clearStallTimer();
+        if (stoppingRef.current) return;
+        if (handleCorsFailure()) return;
+        setIsPlaying(false);
+        setError("Stream failed to load");
+        setStatus("error");
+      };
+
+      audio.addEventListener("play", onPlay);
+      audio.addEventListener("pause", onPause);
+      audio.addEventListener("playing", onPlaying);
+      audio.addEventListener("waiting", onWaiting);
+      audio.addEventListener("stalled", onStalled);
+      audio.addEventListener("ended", onEnded);
+      audio.addEventListener("error", onError);
+
+      return () => {
+        audio.removeEventListener("play", onPlay);
+        audio.removeEventListener("pause", onPause);
+        audio.removeEventListener("playing", onPlaying);
+        audio.removeEventListener("waiting", onWaiting);
+        audio.removeEventListener("stalled", onStalled);
+        audio.removeEventListener("ended", onEnded);
+        audio.removeEventListener("error", onError);
+      };
+    },
+    [clearStallTimer, handleCorsFailure, handleStallTimeout]
+  );
+
+  // A media element that has been routed into Web Audio cannot be un-routed,
+  // so every playback start gets a fresh element.
+  const makeAudio = useCallback(() => {
+    if (unbindRef.current) {
+      unbindRef.current();
+      unbindRef.current = null;
+    }
+    try {
+      if (sourceRef.current) sourceRef.current.disconnect();
+    } catch {
+      /* ignore */
+    }
+    sourceRef.current = null;
+    analyserRef.current = null;
+
+    const old = audioRef.current;
+    if (old) {
+      old.pause();
+      old.removeAttribute("src");
+      old.load();
+    }
+
+    const audio = new Audio();
+    audio.preload = "none";
+    audio.volume = volumeRef.current;
+    audio.muted = mutedRef.current;
+    audioRef.current = audio;
+    unbindRef.current = bindAudio(audio);
+    return audio;
+  }, [bindAudio]);
+
+  const connectAnalyser = useCallback((audio) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+
+      if (!ctxRef.current) ctxRef.current = new AudioCtx();
+      const ctx = ctxRef.current;
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+      if (!analyserNodeRef.current) {
+        const node = ctx.createAnalyser();
+        node.fftSize = 512;
+        node.smoothingTimeConstant = 0.7;
+        node.minDecibels = -90;
+        node.maxDecibels = -25;
+        node.connect(ctx.destination);
+        analyserNodeRef.current = node;
+      }
+
+      const source = ctx.createMediaElementSource(audio);
+      source.connect(analyserNodeRef.current);
+      sourceRef.current = source;
+      analyserRef.current = analyserNodeRef.current;
+    } catch (err) {
+      console.warn("Analyser unavailable:", err);
+      analyserRef.current = null;
+    }
+  }, []);
+
+  const startPlayback = useCallback(
+    (station) => {
+      clearStallTimer();
+      const url = station.streamUrl;
+
+      stoppingRef.current = false;
+      stationRef.current = station;
+      destroyHls();
+      hlsMediaRecoveredRef.current = false;
+      hlsNetworkRecoveredRef.current = false;
+
+      const viaHls = needsHls(url) && Hls.isSupported();
+      // hls.js feeds the element a same-origin blob, so it can always be
+      // analysed. Plain streams need CORS headers, so we try and fall back.
+      const wantCors =
+        ANALYSER_ENABLED && !viaHls && corsSupport.get(url) !== false;
+
+      const audio = makeAudio();
+      tryingCorsRef.current = wantCors;
+      if (wantCors) audio.crossOrigin = "anonymous";
+      if (ANALYSER_ENABLED && (wantCors || viaHls)) connectAnalyser(audio);
+
+      if (viaHls) {
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(audio);
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            if (
+              data.type === Hls.ErrorTypes.MEDIA_ERROR &&
+              !hlsMediaRecoveredRef.current
+            ) {
+              hlsMediaRecoveredRef.current = true;
+              hls.recoverMediaError();
+              return;
+            }
+            if (
+              data.type === Hls.ErrorTypes.NETWORK_ERROR &&
+              !hlsNetworkRecoveredRef.current
+            ) {
+              hlsNetworkRecoveredRef.current = true;
+              hls.startLoad();
+              return;
+            }
+            destroyHls();
+            setError("HLS stream error");
+            setStatus("error");
+            setIsPlaying(false);
+          }
+        });
+        hlsRef.current = hls;
+      } else {
+        audio.src = url;
+      }
+
+      audio.play().catch((err) => {
+        if (err?.name === "AbortError") return;
+        // A newer element has taken over; this failure is stale.
+        if (audioRef.current !== audio) return;
+        if (handleCorsFailure()) return;
+        console.error("Audio playback error:", err);
+        setIsPlaying(false);
+        setError("Stream failed to load");
+        setStatus("error");
+      });
+    },
+    [clearStallTimer, connectAnalyser, destroyHls, handleCorsFailure, makeAudio]
+  );
+
+  useEffect(() => {
+    retryRef.current = startPlayback;
+  }, [startPlayback]);
+
+  // Unmount cleanup
+  useEffect(() => {
+    return () => {
+      clearStallTimer();
+      if (unbindRef.current) unbindRef.current();
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, [clearStallTimer]);
+
+  const isCurrent = useCallback(
+    (station) => {
+      if (!current || !station) return false;
+      return stationKey(current) === stationKey(station);
+    },
+    [current]
+  );
+
+  const play = useCallback(
+    (station, list) => {
+      if (!station || !station.streamUrl) return;
+
+      const alreadyCurrent =
+        current && stationKey(current) === stationKey(station);
+
+      // Already current and healthy: skip re-init, only refresh the playlist.
+      if (alreadyCurrent && audioRef.current && status !== "error") {
+        if (Array.isArray(list) && list.length > 0) {
+          const newIdx = list.findIndex(
+            (s) => stationKey(s) === stationKey(station)
+          );
+          setPlaylist(list);
+          setIndex(newIdx >= 0 ? newIdx : 0);
+        }
+        return;
+      }
+
+      setError(null);
+      setCurrent(station);
+      setStatus("connecting");
+
+      if (Array.isArray(list) && list.length > 0) {
+        setPlaylist(list);
+        const idx = list.findIndex(
+          (s) => stationKey(s) === stationKey(station)
+        );
+        setIndex(idx >= 0 ? idx : 0);
+      } else {
+        setPlaylist((prev) => (prev.length > 0 ? prev : [station]));
+        setIndex(0);
+      }
+
+      startPlayback(station);
+    },
+    [current, startPlayback, status]
+  );
+
+  const toggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!current) return;
+
+    if (isPlaying) {
+      if (audio) audio.pause();
+    } else {
+      // If we restored a station on mount, audioRef is null until the first
+      // play. startPlayback creates the element and starts it.
+      setError(null);
+      setStatus("connecting");
+      startPlayback(current);
+    }
+  }, [current, isPlaying, startPlayback]);
+
+  const stop = useCallback(() => {
+    clearStallTimer();
+    stoppingRef.current = true;
+    tryingCorsRef.current = false;
+    destroyHls();
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.src = "";
+    }
+    analyserRef.current = null;
+    setCurrent(null);
+    setIsPlaying(false);
+    setError(null);
+    setStatus("idle");
+    setPlaylist([]);
+    setIndex(-1);
+    try {
+      localStorage.removeItem(LAST_STATION_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [clearStallTimer, destroyHls]);
+
+  const next = useCallback(() => {
+    if (playlist.length === 0) return;
+    const nextIdx = (index + 1) % playlist.length;
+    play(playlist[nextIdx], playlist);
+  }, [index, play, playlist]);
+
+  const prev = useCallback(() => {
+    if (playlist.length === 0) return;
+    const prevIdx = (index - 1 + playlist.length) % playlist.length;
+    play(playlist[prevIdx], playlist);
+  }, [index, play, playlist]);
+
+  const handleSetVolume = useCallback((val) => {
+    const newVol = Math.max(0, Math.min(1, val));
+    volumeRef.current = newVol;
+    setVolumeState(newVol);
+    if (audioRef.current) audioRef.current.volume = newVol;
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const nextMuted = !mutedRef.current;
+    mutedRef.current = nextMuted;
+    setMuted(nextMuted);
+    if (audioRef.current) audioRef.current.muted = nextMuted;
+  }, []);
+
+  const isFavorite = useCallback(
+    (station) => {
+      const key = stationKey(station);
+      return key ? favorites.includes(key) : false;
+    },
+    [favorites]
+  );
+
+  const toggleFavorite = useCallback((station) => {
+    const key = stationKey(station);
+    if (!key) return;
+    setFavorites((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }, []);
+
+  const format = deriveFormat(current?.streamUrl);
+
+  const msRef = useRef({});
+  const canSkip = playlist.length > 1;
+
+  useEffect(() => {
+    msRef.current = {
+      play: () => {
+        if (!isPlaying) toggle();
+      },
+      pause: () => {
+        if (isPlaying) toggle();
+      },
+      stop,
+      previoustrack: prev,
+      nexttrack: next,
+    };
+  }, [isPlaying, toggle, stop, prev, next]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const live = ["play", "pause", "stop"];
+    const skip = ["previoustrack", "nexttrack"];
+    for (const a of [...live, ...skip]) {
+      const on = live.includes(a) || canSkip;
+      try {
+        ms.setActionHandler(a, on ? () => msRef.current[a]?.() : null);
+      } catch {
+        /* unsupported */
+      }
+    }
+  }, [canSkip]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.metadata = current
+      ? new MediaMetadata({
+          title: current.name,
+          artist: current.genre || "Live radio",
+          album: "Aether FM",
+        })
+      : null;
+  }, [current]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = !current
+      ? "none"
+      : isPlaying
+      ? "playing"
+      : "paused";
+  }, [current, isPlaying]);
+
+  return (
+    <PlayerContext.Provider
+      value={{
+        current,
+        isPlaying,
+        volume,
+        muted,
+        error,
+        status,
+        format,
+        playlist,
+        index,
+        play,
+        toggle,
+        stop,
+        next,
+        prev,
+        setVolume: handleSetVolume,
+        toggleMute,
+        isCurrent,
+        isFavorite,
+        toggleFavorite,
+        audioRef,
+        analyserRef,
+      }}
+    >
+      {children}
+    </PlayerContext.Provider>
+  );
+}
+
+===== src/context/PlayerContextDef.js =====
+import { createContext } from "react";
+
+export const PlayerContext = createContext(null);
+
+
+===== src/context/StationsContext.jsx =====
+import { useCallback, useEffect, useState } from "react";
+import { StationsContext } from "./StationsContextDef";
+
+const API = "https://laughing-barnacle-ashn.onrender.com/stations";
+const CACHE_KEY = "aether:stations:v2";
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// ---------------------------------------------------------------------------
+// Normalisation helpers
+// ---------------------------------------------------------------------------
+
+function normalizeStation(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const streamUrl = raw.streamUrl ?? raw.url ?? raw.stream;
+  if (!streamUrl) return null;
+  const name = raw.name ?? raw.title ?? "Untitled";
+  const genre =
+    typeof raw.genre === "string" && raw.genre.trim()
+      ? raw.genre.trim()
+      : "Unknown";
+
+  return {
+    ...raw,
+    name,
+    streamUrl,
+    genre,
+  };
+}
+
+function normalizeStations(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(normalizeStation).filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
+// localStorage helpers – every access wrapped in try/catch
+// ---------------------------------------------------------------------------
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.ts === "number" &&
+      Array.isArray(parsed.data) &&
+      parsed.data.length > 0
+    ) {
+      const normalized = normalizeStations(parsed.data);
+      if (normalized.length > 0) {
+        return { ts: parsed.ts, data: normalized };
+      }
+    }
+    // Invalid shape – discard
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    try { localStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
+  }
+  return null;
+}
+
+function writeCache(data) {
+  try {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ ts: Date.now(), data })
+    );
+  } catch {
+    /* quota exceeded or storage blocked – ignore */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lazy initialiser – runs in useState(), not in an effect
+// ---------------------------------------------------------------------------
+
+function initFromCache() {
+  const entry = readCache();
+  if (entry) {
+    const fresh = Date.now() - entry.ts < CACHE_TTL_MS;
+    return {
+      stations: entry.data,
+      loading: false,       // we have data → no loading state
+      error: null,
+      needsFetch: !fresh,   // stale → background refresh
+    };
+  }
+  return {
+    stations: [],
+    loading: true,          // no data at all → show loading
+    error: null,
+    needsFetch: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
+
+export function StationsProvider({ children }) {
+  const [state, setState] = useState(() => {
+    const initial = initFromCache();
+    return {
+      stations: initial.stations,
+      loading: initial.loading,
+      error: initial.error,
+      needsFetch: initial.needsFetch,
+    };
+  });
+  const [initialNeedsFetch] = useState(state.needsFetch);
+
+  // Fetch helper – returns the data array or throws
+  const fetchStations = useCallback(async () => {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : data?.stations || [];
+    return normalizeStations(list);
+  }, []);
+
+  // Initial / stale-refresh effect
+  useEffect(() => {
+    if (!initialNeedsFetch) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await fetchStations();
+        if (cancelled) return;
+        writeCache(data);
+        setState({ stations: data, loading: false, error: null });
+      } catch (err) {
+        if (cancelled) return;
+        // If we already had cached (stale) data, keep it – no error shown.
+        setState((prev) => {
+          if (prev.stations.length > 0) {
+            return { ...prev, loading: false };
+          }
+          // No cached data at all – show the error
+          return { stations: [], loading: false, error: err.message };
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialNeedsFetch, fetchStations]);
+
+  // Manual reload – ignores TTL, always refetches
+  const reload = useCallback(() => {
+    // Only set loading if we have no data yet
+    setState((prev) => ({
+      ...prev,
+      loading: prev.stations.length === 0,
+      error: null,
+    }));
+
+    fetchStations()
+      .then((data) => {
+        writeCache(data);
+        setState({ stations: data, loading: false, error: null });
+      })
+      .catch((err) => {
+        setState((prev) => {
+          if (prev.stations.length > 0) {
+            return { ...prev, loading: false };
+          }
+          return { stations: [], loading: false, error: err.message };
+        });
+      });
+  }, [fetchStations]);
+
+  const value = {
+    stations: state.stations,
+    loading: state.loading,
+    error: state.error,
+    reload,
+  };
+
+  return (
+    <StationsContext.Provider value={value}>
+      {children}
+    </StationsContext.Provider>
+  );
+}
+
+
+===== src/context/StationsContextDef.js =====
+import { createContext } from "react";
+
+export const StationsContext = createContext(null);
+
+
+===== src/context/usePlayer.js =====
+import { useContext } from "react";
+import { PlayerContext } from "./PlayerContextDef";
+
+export function usePlayer() {
+  const context = useContext(PlayerContext);
+  if (!context) {
+    throw new Error("usePlayer must be used within a PlayerProvider");
+  }
+  return context;
+}
+
+
+===== src/context/useStations.js =====
+import { useContext } from "react";
+import { StationsContext } from "./StationsContextDef";
+
+export function useStations() {
+  const context = useContext(StationsContext);
+  if (!context) {
+    throw new Error("useStations must be used within a StationsProvider");
+  }
+  return context;
+}
+
+
+===== src/hooks/usePlayerShortcuts.js =====
+// src/hooks/usePlayerShortcuts.js
+import { useEffect } from "react";
+import { usePlayer } from "../context/usePlayer";
+
+const TEXT_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+
+const isButtonOrA = (t) =>
+  Boolean(t && (t.tagName === "BUTTON" || t.tagName === "A" || t.closest?.("button, a")));
+
+export function usePlayerShortcuts() {
+  const { current, toggle, next, prev, playlist } = usePlayer();
+
+  useEffect(() => {
+    if (!current) return; // nothing loaded: let keys scroll/type normally
+
+    const ignore = (e) => {
+      const t = e.target;
+      if (e.ctrlKey || e.metaKey || e.altKey) return true;
+      if (!t) return false;
+      if (t.isContentEditable) return true;
+      return TEXT_TAGS.has(t.tagName) && t.type !== "range";
+    };
+
+    const onKeyDown = (e) => {
+      if (ignore(e)) return;
+
+      // Shift+P → previous
+      if (e.shiftKey && e.code === "KeyP") {
+        e.preventDefault();
+        if (!e.repeat && playlist.length > 1) prev();
+        return;
+      }
+
+      // Shift+N → next
+      if (e.shiftKey && e.code === "KeyN") {
+        e.preventDefault();
+        if (!e.repeat && playlist.length > 1) next();
+        return;
+      }
+
+      // Space → play/pause
+      if (e.code === "Space") {
+        if (isButtonOrA(e.target)) return;
+        e.preventDefault();
+        if (!e.repeat) toggle();
+      }
+    };
+
+    const onKeyUp = (e) => {
+      if (ignore(e)) return;
+
+      if (e.code === "Space") {
+        if (isButtonOrA(e.target)) return;
+        e.preventDefault();
+        return;
+      }
+
+      if ((e.code === "KeyP" || e.code === "KeyN") && e.shiftKey) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [current, toggle, next, prev, playlist.length]);
+}
+
+===== src/hooks/useSpeedTest.js =====
+import { useState, useRef, useCallback, useEffect } from "react";
+
+const DEBOUNCE_MS = 60 * 1000; // 60 seconds
+
+export function useSpeedTest() {
+  const [status, setStatus] = useState("idle"); // "idle" | "running" | "done" | "error"
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const controllerRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const lastCompletedRef = useRef(0);
+  const statusRef = useRef("idle");
+  const resultRef = useRef(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const abort = useCallback(() => {
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+      controllerRef.current = null;
+    }
+    if (isMountedRef.current) {
+      statusRef.current = resultRef.current ? "done" : "idle";
+      setStatus(statusRef.current);
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+      controllerRef.current = null;
+    }
+    lastCompletedRef.current = 0;
+    resultRef.current = null;
+    if (isMountedRef.current) {
+      setResult(null);
+      setError(null);
+      statusRef.current = "idle";
+      setStatus("idle");
+    }
+  }, []);
+
+  const run = useCallback(async () => {
+    // No-op if already running
+    if (statusRef.current === "running") return;
+
+    // Debounce: if test completed within the last 60 seconds, return immediately
+    const now = Date.now();
+    if (now - lastCompletedRef.current < DEBOUNCE_MS) {
+      return;
+    }
+
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    statusRef.current = "running";
+    setStatus("running");
+    setError(null);
+
+    const url = `https://speed.cloudflare.com/__down?bytes=1000000&_t=${now}`;
+    const start = performance.now();
+
+    try {
+      const res = await fetch(url, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const end = performance.now();
+      const durationMs = Math.max(1, end - start);
+      const mbps =
+        Math.round(((blob.size * 8) / (durationMs / 1000) / 1_000_000) * 10) /
+        10;
+
+      if (!isMountedRef.current) return;
+
+      lastCompletedRef.current = Date.now();
+      const newResult = {
+        mbps,
+        bytes: blob.size,
+        durationMs: Math.round(durationMs),
+        timestamp: lastCompletedRef.current,
+      };
+
+      resultRef.current = newResult;
+      setResult(newResult);
+      statusRef.current = "done";
+      setStatus("done");
+    } catch (err) {
+      if (!isMountedRef.current) return;
+
+      if (err?.name === "AbortError") {
+        // Silent abort: clear running state
+        statusRef.current = resultRef.current ? "done" : "idle";
+        setStatus(statusRef.current);
+        return;
+      }
+
+      setError(err?.message || "Speed test failed");
+      statusRef.current = "error";
+      setStatus("error");
+    } finally {
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+      }
+    }
+  }, []);
+
+  return {
+    run,
+    result,
+    status,
+    error,
+    reset,
+    abort,
+  };
+}
+
+
+===== src/index.css =====
+* {
+  user-select: none;
+  /* cursor: default; */
+}
+
+/* Hide scrollbar */
+::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  scrollbar-width: none;
+}
+
+body {
+  -ms-overflow-style: none;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .font-jetbrains {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Now-playing volume slider */
+.np-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+
+.np-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+/*
+  Mini-player blob. The blob is 50% of the bar wide, and translateX % is
+  relative to the blob itself, so -40% -> 140% sweeps its centre from ~5% to
+  ~95% of the bar. Two keyframes + alternate + ease-in-out = one smooth
+  glide that slows gently at each end (where the blob is mostly off-screen).
+  Only transform is animated.
+*/
+@keyframes blob-glide {
+  from {
+    transform: translate3d(-40%, -50%, 0);
+  }
+  to {
+    transform: translate3d(140%, -50%, 0);
+  }
+}
+
+.blob-glide {
+  animation: blob-glide 14s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob-glide {
+    animation: none;
+    transform: translate3d(50%, -50%, 0);
+  }
+}
+
+===== src/main.jsx =====
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+===== src/pages/FavoritesPage.jsx =====
+import { Link } from "react-router-dom";
+import Header from "../components/Header";
+import StationCard from "../components/StationCard";
+import { useStations } from "../context/useStations";
+import { usePlayer } from "../context/usePlayer";
+
+export default function FavoritesPage() {
+  const { stations, loading, error, reload } = useStations();
+  const { current, isFavorite } = usePlayer();
+
+  const favoriteStations = stations.filter((s) => isFavorite(s));
+
+  return (
+    <div className="min-h-screen bg-black font-jetbrains">
+      <Header />
+      <section
+        className={`px-4 py-10 sm:px-6 md:px-10 md:py-16 ${
+          current ? "pb-24 md:pb-24" : ""
+        }`}
+      >
+        <Link
+          to="/"
+          className="mb-8 inline-block text-[11px] uppercase tracking-[0.35em] text-white/60 hover:text-white"
+        >
+          ← Back
+        </Link>
+
+        <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/50">
+          Presets
+        </p>
+
+        <h1 className="text-5xl font-black uppercase leading-none tracking-[-0.06em] text-white md:text-8xl">
+          Favorites
+        </h1>
+
+        {error && stations.length === 0 ? (
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-[0.35em] text-red-400">
+              Error: {error}
+            </span>
+            <button
+              onClick={reload}
+              className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
+            {loading
+              ? "Scanning presets…"
+              : error
+              ? `Error: ${error}`
+              : `${favoriteStations.length} ${
+                  favoriteStations.length === 1 ? "station" : "stations"
+                } saved`}
+          </p>
+        )}
+
+        {!loading && favoriteStations.length === 0 && (
+          <div className="mt-12 border border-white/10 bg-white/[0.03] p-8 text-center">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
+              No presets saved yet
+            </p>
+            <Link
+              to="/"
+              className="mt-6 inline-block border border-white/20 px-6 py-3 text-[11px] font-bold uppercase tracking-[0.25em] text-white hover:bg-white hover:text-black transition-colors"
+            >
+              Browse stations
+            </Link>
+          </div>
+        )}
+
+        {!loading && favoriteStations.length > 0 && (
+          <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            {favoriteStations.map((s, i) => (
+              <StationCard
+                key={s._id || i}
+                number={String(i + 1).padStart(3, "0")}
+                station={s}
+                playlist={favoriteStations}
+                genre={s.genre}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+===== src/pages/GenrePage.jsx =====
+import { Link, useParams } from "react-router-dom";
+import Header from "../components/Header";
+import StationCard from "../components/StationCard";
+import { useStations } from "../context/useStations";
+import { usePlayer } from "../context/usePlayer";
+import { getGenreColor } from "../utils/genreColors";
+
+export default function GenrePage() {
+  const { genre } = useParams();
+  const { stations, loading, error, reload } = useStations();
+  const { current } = usePlayer();
+
+  const color = getGenreColor(genre);
+
+  const filtered = stations.filter(
+    (s) => s.genre.toLowerCase() === genre?.toLowerCase()
+  );
+
+  return (
+    <div className="min-h-screen bg-black font-jetbrains">
+      <Header />
+      <section className={`px-4 py-10 sm:px-6 md:px-10 md:py-16 ${current ? "pb-24 md:pb-24" : ""}`}>
+        <Link
+          to="/"
+          className="mb-8 inline-block text-[11px] uppercase tracking-[0.35em] text-white/60 hover:text-white"
+        >
+          ← Back
+        </Link>
+
+        <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/50">
+          Frequency
+        </p>
+
+        <h1
+          className="text-5xl font-black uppercase leading-none tracking-[-0.06em] md:text-8xl"
+          style={{ color }}
+        >
+          {genre}
+        </h1>
+
+        {error && stations.length === 0 ? (
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-[0.35em] text-red-400">
+              Error: {error}
+            </span>
+            <button
+              onClick={reload}
+              className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
+            {loading
+              ? "Scanning stations…"
+              : error
+              ? `Error: ${error}`
+              : `${filtered.length} ${filtered.length === 1 ? "station" : "stations"} on air`}
+          </p>
+        )}
+
+        <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square flex flex-col justify-between border border-white/10 bg-white/[0.02] p-3 sm:p-6 animate-pulse"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="h-3 w-8 bg-white/10" />
+                    <div className="h-7 w-7 bg-white/10" />
+                  </div>
+                  <div>
+                    <div className="mb-2 h-2.5 w-16 bg-white/10" />
+                    <div className="h-6 sm:h-9 w-4/5 bg-white/10 mb-3" />
+                    <div className="hidden sm:block h-3 w-24 bg-white/5" />
+                  </div>
+                  <div className="flex items-center justify-between border-t border-white/10 pt-3 sm:pt-4">
+                    <div className="h-2.5 w-16 bg-white/10" />
+                    <div className="h-3 w-3 bg-white/10" />
+                  </div>
+                </div>
+              ))
+            : filtered.map((s, i) => (
+                <StationCard
+                  key={s._id || i}
+                  number={String(i + 1).padStart(3, "0")}
+                  station={s}
+                  playlist={filtered}
+                  genre={genre}
+                />
+              ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+===== src/pages/HomePage.jsx =====
+import GenreCard from "../components/GenreCard";
+import Header from "../components/Header";
+import { useStations } from "../context/useStations";
+import { usePlayer } from "../context/usePlayer";
+
+function HomePage() {
+  const { stations, loading, error, reload } = useStations();
+  const { current } = usePlayer();
+
+  // Group genres case-insensitively (key = lowercase, display = first-seen casing)
+  const genresMap = new Map();
+  for (const station of stations) {
+    const key = station.genre.toLowerCase();
+    if (!genresMap.has(key)) {
+      genresMap.set(key, { genre: station.genre, count: 0 });
+    }
+    genresMap.get(key).count += 1;
+  }
+  const genres = Array.from(genresMap.values());
+
+  return (
+    <div className="min-h-screen bg-black">
+      <Header />
+
+      <section className={`px-4 py-10 sm:px-6 md:px-10 md:py-16 ${current ? "pb-24 md:pb-24" : ""}`}>
+        <div className="mb-12">
+          <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/30">
+            Available frequencies
+          </p>
+
+          <h1 className="text-5xl font-black uppercase leading-none tracking-[-0.06em] text-white md:text-8xl">
+            Stations
+          </h1>
+
+          {error && stations.length === 0 ? (
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-[10px] uppercase tracking-[0.35em] text-red-400">
+                Error: {error}
+              </span>
+              <button
+                onClick={reload}
+                className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <p className="mt-4 text-[10px] uppercase tracking-[0.35em] text-white/40">
+              {loading
+                ? "Scanning frequencies…"
+                : error
+                ? `Error: ${error}`
+                : `${genres.length} genres · ${stations.length} stations on air`}
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square flex flex-col justify-between border border-white/10 bg-white/[0.02] p-3 sm:p-6 animate-pulse"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="h-3 w-8 bg-white/10" />
+                    <div className="h-2 w-2 bg-white/20" />
+                  </div>
+                  <div>
+                    <div className="mb-2 h-2.5 w-12 bg-white/10" />
+                    <div className="h-6 sm:h-9 w-3/4 bg-white/10 mb-3" />
+                    <div className="h-3 w-1/2 bg-white/5" />
+                  </div>
+                  <div className="flex items-center justify-between border-t border-white/10 pt-3 sm:pt-4">
+                    <div className="h-2.5 w-14 bg-white/10" />
+                    <div className="h-4 w-4 bg-white/10" />
+                  </div>
+                </div>
+              ))
+            : genres.map(({ genre, count }, i) => (
+                <GenreCard
+                  key={genre}
+                  number={String(i + 1).padStart(3, "0")}
+                  genre={genre}
+                  description={`${count} ${count === 1 ? "station" : "stations"} — tap to tune in.`}
+                />
+              ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default HomePage;
+
+===== src/pages/NowPlayingPage.jsx =====
+import { useEffect, useRef, useCallback, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Heart,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import Header from "../components/Header";
+import { usePlayer } from "../context/usePlayer";
+import { getGenreColor, readableOn } from "../utils/genreColors";
+
+// ---------------------------------------------------------------------------
+// Theme: the page takes its accent from the current station's genre (same
+// colours as the genre cards). The root element exposes it as CSS variables:
+//   --g  genre colour      --gb  genre colour at 40% (resting borders)
+//   --gt text colour that is readable ON the genre colour
+// Amber (connecting) and red (error) stay fixed so problems always look
+// like problems, whatever the genre colour is.
+// ---------------------------------------------------------------------------
+
+const AMBER = "#facc15";
+const RED = "#ef4444";
+const IDLE = "rgba(255,255,255,0.35)";
+
+const LABEL = "text-[10px] uppercase tracking-[0.3em] text-white/50";
+const PANEL =
+  "border border-[color:var(--gb)] bg-white/[0.04] p-4 sm:p-6 lg:p-7";
+
+// ---------------------------------------------------------------------------
+// Stable "frequency" from station name / _id (cosmetic, not real signal data)
+// ---------------------------------------------------------------------------
+
+function hashToFreq(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) | 0;
+  }
+  const norm = ((h >>> 0) % 2001) / 100; // 0.00 - 20.00
+  return 88.0 + norm; // 88.0 - 108.0
+}
+
+function getFrequency(station) {
+  if (station?.frequency) return Number(station.frequency);
+  const seed = station?._id || station?.name || "unknown";
+  return Math.round(hashToFreq(seed) * 10) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// Tuning ruler: ticks every 0.5 MHz, major every 2, labelled every 4
+// ---------------------------------------------------------------------------
+
+const TICKS = Array.from({ length: 41 }, (_, i) => i); // 88.0 .. 108.0
+
+function TuningRuler({ pct, live, accent }) {
+  const needle = live ? accent : "#ffffff";
+
+  return (
+    <div className="mx-3 sm:mx-4">
+      <div className="relative h-8">
+        {TICKS.map((i) => (
+          <span
+            key={i}
+            className={`absolute bottom-0 w-px ${
+              i % 4 === 0 ? "h-4 bg-white/50" : "h-2 bg-white/20"
+            }`}
+            style={{ left: `${(i / 40) * 100}%` }}
+          />
+        ))}
+        <span
+          className="absolute bottom-0 top-0 w-0.5 -translate-x-1/2 transition-[left] duration-500"
+          style={{ left: `${pct}%`, backgroundColor: needle }}
+        />
+      </div>
+
+      <div className="relative mt-1.5 h-4 text-[11px] text-white/60">
+        {TICKS.filter((i) => i % 8 === 0).map((i) => (
+          <span
+            key={i}
+            className="absolute -translate-x-1/2"
+            style={{ left: `${(i / 40) * 100}%` }}
+          >
+            {88 + i / 2}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Equalizer
+//
+// Reads real frequency data from the analyser when the player has one.
+// If the stream can't be analysed (no CORS headers) it falls back to a
+// simulated animation and reports that via onMode, so the UI can say so.
+// When nothing is playing, the loop settles and STOPS (no animation, no CPU).
+// ---------------------------------------------------------------------------
+
+const BAR_COUNT = 24;
+const FLOOR = 3;
+
+function makeBands(binCount) {
+  const maxBin = Math.min(binCount - 1, Math.round(binCount * 0.55));
+  const edges = [];
+  for (let i = 0; i <= BAR_COUNT; i++) {
+    edges.push(1 + Math.round(Math.pow(i / BAR_COUNT, 1.8) * (maxBin - 1)));
+  }
+  return Array.from({ length: BAR_COUNT }, (_, i) => [
+    edges[i],
+    Math.max(edges[i] + 1, edges[i + 1]),
+  ]);
+}
+
+function bandLevels(data, bands) {
+  return bands.map(([lo, hi], i) => {
+    let peak = 0;
+    for (let b = lo; b < hi && b < data.length; b++) {
+      if (data[b] > peak) peak = data[b];
+    }
+    const tilt = 1 + (i / BAR_COUNT) * 0.7; // highs carry less energy
+    return Math.min(1, Math.pow(peak / 255, 1.5) * tilt);
+  });
+}
+
+function Equalizer({ active, analyserRef, color, onMode }) {
+  const canvasRef = useRef(null);
+  const heightsRef = useRef(new Array(BAR_COUNT).fill(FLOOR));
+  const sizeRef = useRef({ width: 0, height: 0, dpr: 1 });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    const paint = () => {
+      const { width: w, height: h } = sizeRef.current;
+      if (w === 0 || h === 0) return;
+      ctx.clearRect(0, 0, w, h);
+
+      const gap = 4;
+      const barW = Math.max(3, (w - (BAR_COUNT - 1) * gap) / BAR_COUNT);
+      ctx.fillStyle = color;
+
+      heightsRef.current.forEach((bh, i) => {
+        const hh = Math.min(bh, h);
+        ctx.fillRect(
+          Math.floor(i * (barW + gap)),
+          Math.floor(h - hh),
+          Math.floor(barW),
+          Math.ceil(hh)
+        );
+      });
+    };
+
+    const updateSize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (w === 0 || h === 0) return;
+      const s = sizeRef.current;
+      if (s.width !== w || s.height !== h || s.dpr !== dpr) {
+        sizeRef.current = { width: w, height: h, dpr };
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        paint(); // resizing clears the canvas; redraw even if the loop is idle
+      }
+    };
+
+    updateSize();
+
+    let observer;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(updateSize);
+      observer.observe(canvas);
+    }
+
+    let raf = 0;
+    let data = null;
+    let bands = null;
+    let silentFrames = 0;
+    let heard = false;
+    let mode = null;
+
+    const setMode = (m) => {
+      if (m !== mode) {
+        mode = m;
+        onMode(m);
+      }
+    };
+
+    const render = (time) => {
+      const { height: h } = sizeRef.current;
+      const analyser = active ? analyserRef.current : null;
+      let levels = null;
+
+      if (analyser) {
+        if (!data || data.length !== analyser.frequencyBinCount) {
+          data = new Uint8Array(analyser.frequencyBinCount);
+          bands = makeBands(data.length);
+        }
+        analyser.getByteFrequencyData(data);
+
+        let peak = 0;
+        for (let i = 0; i < data.length; i++) {
+          if (data[i] > peak) peak = data[i];
+        }
+        if (peak > 0) {
+          heard = true;
+          silentFrames = 0;
+        } else {
+          silentFrames++;
+        }
+
+        // Analyser present but never produced a single non-zero sample in
+        // ~3s: the browser is feeding it silence. Treat as unavailable.
+        if (heard || silentFrames < 180) levels = bandLevels(data, bands);
+      }
+
+      setMode(levels ? "live" : active ? "sim" : "idle");
+
+      const heights = heightsRef.current;
+      let moving = false;
+
+      for (let i = 0; i < BAR_COUNT; i++) {
+        let target = FLOOR;
+
+        if (active) {
+          if (levels) {
+            target = Math.max(FLOOR, levels[i] * h * 0.95);
+          } else {
+            const t = time * 0.0012;
+            const a = Math.sin(t * 1.5 + i * 0.4);
+            const b = Math.cos(t * 2.1 - i * 0.3);
+            const c = Math.sin(t * 3.3 + i * 0.7);
+            const norm = (a * 0.4 + b * 0.4 + c * 0.2 + 1) / 2;
+            target = Math.max(6, norm * (h * 0.85));
+          }
+        }
+
+        // fast attack so beats hit, slower release so bars fall smoothly
+        const diff = target - heights[i];
+        heights[i] += diff * (diff > 0 ? 0.6 : 0.15);
+        if (heights[i] > FLOOR + 0.5) moving = true;
+      }
+
+      paint();
+
+      // Keep looping only while playing or while bars are still falling.
+      if (active || moving) raf = requestAnimationFrame(render);
+    };
+
+    raf = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      if (observer) observer.disconnect();
+    };
+  }, [active, analyserRef, color, onMode]);
+
+  return (
+    <div className="relative min-h-[48px] flex-1">
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 block h-full w-full"
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Small pieces
+// ---------------------------------------------------------------------------
+
+function InfoRow({ label, children, title, className = "flex" }) {
+  return (
+    <div
+      className={`${className} items-center justify-between gap-4 border-b border-white/10 py-2.5 last:border-b-0`}
+    >
+      <span className={`${LABEL} shrink-0`}>{label}</span>
+      <span
+        className="truncate text-right text-[11px] uppercase tracking-[0.15em] text-white/80"
+        title={title}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
+const pad = (n) => String(n).padStart(2, "0");
+
+const btnBase =
+  "flex items-center justify-center gap-2 border border-[color:var(--gb)] bg-white/[0.04] py-4 text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:border-[color:var(--g)] hover:bg-[color:var(--g)] hover:text-[color:var(--gt)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[color:var(--gb)] disabled:hover:bg-white/[0.04] disabled:hover:text-white";
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+export default function NowPlayingPage() {
+  const {
+    current,
+    isPlaying,
+    toggle,
+    play,
+    volume,
+    setVolume,
+    muted,
+    toggleMute,
+    error,
+    status,
+    format,
+    playlist,
+    index,
+    next,
+    prev,
+    isFavorite,
+    toggleFavorite,
+    analyserRef,
+  } = usePlayer();
+
+  const [eqMode, setEqMode] = useState("idle"); // idle | live | sim
+
+  const handleRetry = useCallback(() => {
+    if (current) play(current, playlist);
+  }, [current, play, playlist]);
+
+  // -------------------------------------------------------------------------
+  // Empty state
+  // -------------------------------------------------------------------------
+  if (!current) {
+    return (
+      <div className="min-h-screen bg-black font-jetbrains">
+        <Header />
+        <section className="px-4 py-10 sm:px-6 md:px-10 md:py-16">
+          <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/40">
+            Now tuned
+          </p>
+          <h1 className="text-5xl font-black uppercase leading-none tracking-[-0.06em] text-white md:text-8xl">
+            No signal
+          </h1>
+          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
+            Pick a station to start transmitting
+          </p>
+          <Link
+            to="/"
+            className="mt-10 inline-block border border-white/15 bg-white/[0.04] px-6 py-3 text-[11px] font-bold uppercase tracking-[0.25em] text-white transition-colors hover:border-white/40 hover:bg-white/[0.07]"
+          >
+            Browse stations
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Derived values
+  // -------------------------------------------------------------------------
+  const genre = current.genre;
+  const backTo = genre ? `/genre/${encodeURIComponent(genre)}` : "/";
+
+  const freq = getFrequency(current);
+  const freqStr = freq.toFixed(1);
+  const tunerPct = Math.min(Math.max(((freq - 88) / 20) * 100, 0), 100);
+
+  const live = isPlaying && status === "connected";
+  const fav = isFavorite(current);
+  const stationIdx = index >= 0 ? index + 1 : 0;
+  const stationCount = playlist.length;
+  const shownVolume = muted ? 0 : volume;
+
+  const accent = getGenreColor(current.genre);
+  const ink = readableOn(accent);
+
+  const statusLabel =
+    {
+      idle: "Idle",
+      connecting: "Connecting",
+      connected: "Connected",
+      error: "Error",
+    }[status] || "Idle";
+
+  const statusColour =
+    {
+      idle: IDLE,
+      connecting: AMBER,
+      connected: accent,
+      error: RED,
+    }[status] || IDLE;
+
+  const eqLabel = { live: "Live signal", sim: "Simulated", idle: "Silent" }[
+    eqMode
+  ];
+  const eqLabelColour =
+    eqMode === "live" ? accent : eqMode === "sim" ? AMBER : IDLE;
+
+  return (
+    <div
+      style={{
+        "--g": accent,
+        "--gb": `${accent}66`,
+        "--gt": ink,
+        backgroundColor: "#000",
+        backgroundImage: `radial-gradient(ellipse 80% 50% at 50% 0%, ${accent}22, transparent 70%)`,
+      }}
+      className="flex h-screen h-dvh flex-col overflow-hidden font-jetbrains text-white"
+    >
+      <div className="shrink-0">
+        <div className="mx-auto w-full max-w-[1600px]">
+          <Header />
+        </div>
+      </div>
+
+      {/* Scrolls only as a last resort on very short screens */}
+      <section className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 md:px-10 md:py-5">
+        <div className="mb-2 flex items-center justify-between gap-4 md:mb-3">
+          <Link
+            to={backTo}
+            className="shrink-0 text-[11px] uppercase tracking-[0.35em] text-white/60 transition-colors hover:text-[color:var(--g)]"
+          >
+            ← Back
+          </Link>
+          <p className="truncate text-[10px] uppercase tracking-[0.35em] text-white/50">
+            Now tuned · {pad(stationIdx)} / {pad(stationCount)}
+          </p>
+        </div>
+
+        <h1
+          className="truncate text-4xl font-black uppercase leading-[1.05] tracking-[-0.06em] text-white sm:text-5xl md:text-6xl lg:text-7xl"
+          title={current.name}
+        >
+          {current.name}
+        </h1>
+
+        <p className="mt-2 text-[11px] uppercase tracking-[0.35em] text-white/60">
+          <span className="font-bold" style={{ color: accent }}>
+            {genre}
+          </span>{" "}
+          · {freqStr} MHz ·{" "}
+          <span className="font-bold" style={{ color: statusColour }}>
+            {statusLabel}
+          </span>
+        </p>
+
+        {/* Both columns stretch to the same height */}
+        <div className="mt-3 grid flex-1 grid-cols-1 grid-rows-[minmax(min-content,1fr)_auto] gap-4 md:mt-5 lg:grid-cols-12 lg:grid-rows-[minmax(min-content,1fr)] lg:gap-5">
+          {/* ================= LEFT: signal ================= */}
+          <div className="flex flex-col gap-4 lg:col-span-7 lg:gap-5">
+            {/* Frequency */}
+            <div className={PANEL}>
+              <div className="flex items-start justify-between">
+                <p className={LABEL}>Frequency</p>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 ${live ? "animate-pulse" : ""}`}
+                    style={{ backgroundColor: live ? accent : IDLE }}
+                  />
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-white/60">
+                    {live ? "On air" : "Off air"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-4 mt-2 flex items-baseline gap-3">
+                <span
+                  className="text-5xl font-black leading-none tracking-[-0.06em] transition-colors sm:text-6xl lg:text-7xl"
+                  style={{ color: live ? accent : "#ffffff" }}
+                >
+                  {freqStr}
+                </span>
+                <span className="text-sm font-bold uppercase tracking-[0.25em] text-white/60">
+                  MHz
+                </span>
+              </div>
+
+              <TuningRuler pct={tunerPct} live={live} accent={accent} />
+            </div>
+
+            {/* Equalizer: grows to fill whatever height the right column needs */}
+            <div className={`${PANEL} flex min-h-[110px] flex-1 flex-col`}>
+              <div className="mb-3 flex items-center justify-between">
+                <p className={LABEL}>Spectrogram</p>
+                <p
+                  className="text-[10px] font-bold uppercase tracking-[0.25em]"
+                  style={{ color: eqLabelColour }}
+                >
+                  {eqLabel}
+                </p>
+              </div>
+              <Equalizer
+                active={live}
+                analyserRef={analyserRef}
+                color={live ? accent : IDLE}
+                onMode={setEqMode}
+              />
+            </div>
+          </div>
+
+          {/* ================= RIGHT: controls ================= */}
+          <div className="flex flex-col gap-4 lg:col-span-5 lg:gap-5">
+            <div className={PANEL}>
+              {/* Transport */}
+              <div className="grid grid-cols-[1fr_2fr_1fr] gap-2.5 sm:gap-3.5">
+                <button
+                  onClick={prev}
+                  disabled={stationCount <= 1}
+                  aria-label="Previous station"
+                  className={btnBase}
+                >
+                  <SkipBack className="h-4 w-4" />
+                  <span className="hidden sm:inline">Prev</span>
+                  <kbd className="hidden border border-current px-1.5 py-0.5 text-[9px] font-bold opacity-60 lg:inline">
+                    ⇧P
+                  </kbd>
+                </button>
+
+                <button
+                  onClick={toggle}
+                  className="flex items-center justify-center gap-3 bg-[color:var(--g)] py-4 text-xs font-black uppercase tracking-[0.25em] text-[color:var(--gt)] transition-[filter] hover:brightness-110"
+                >
+                  {isPlaying ? (
+                    <Pause className="h-5 w-5" />
+                  ) : (
+                    <Play className="h-5 w-5" />
+                  )}
+                  {isPlaying ? "Pause" : "Play"}
+                  <kbd className="hidden border border-current px-1.5 py-0.5 text-[9px] font-bold opacity-60 lg:inline">
+                    Space
+                  </kbd>
+                </button>
+
+                <button
+                  onClick={next}
+                  disabled={stationCount <= 1}
+                  aria-label="Next station"
+                  className={btnBase}
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <kbd className="hidden border border-current px-1.5 py-0.5 text-[9px] font-bold opacity-60 lg:inline">
+                    ⇧N
+                  </kbd>
+                  <SkipForward className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Volume + favorite in one row */}
+              <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
+                <button
+                  onClick={toggleMute}
+                  aria-label={muted ? "Unmute" : "Mute"}
+                  className="shrink-0 text-white/70 transition-colors hover:text-white"
+                >
+                  {muted ? (
+                    <VolumeX className="h-4 w-4" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </button>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={shownVolume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  aria-label="Volume"
+                  className="np-slider h-1.5 min-w-0 flex-1 cursor-pointer appearance-none outline-none"
+                  style={{
+                    background: `linear-gradient(to right, ${accent} ${
+                      shownVolume * 100
+                    }%, rgba(255,255,255,0.2) ${shownVolume * 100}%)`,
+                  }}
+                />
+
+                <span className="w-10 shrink-0 text-right text-[11px] text-white/70">
+                  {Math.round(shownVolume * 100)}%
+                </span>
+
+                <button
+                  onClick={() => toggleFavorite(current)}
+                  aria-pressed={fav}
+                  aria-label={fav ? "Remove from favorites" : "Add to favorites"}
+                  title={fav ? "Remove from favorites" : "Add to favorites"}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors ${
+                    fav
+                      ? "border-[color:var(--g)] bg-[color:var(--g)] text-[color:var(--gt)]"
+                      : "border-[color:var(--gb)] text-white/70 hover:border-[color:var(--g)] hover:text-white"
+                  }`}
+                >
+                  <Heart className={`h-4 w-4 ${fav ? "fill-current" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center justify-between gap-3 border border-red-500/50 bg-red-500/10 p-3">
+                <span className="text-[11px] uppercase tracking-[0.2em] text-red-400">
+                  Signal error: {error}
+                </span>
+                <button
+                  onClick={handleRetry}
+                  className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Stream info: stretches so both columns end on the same line */}
+            <div className={`${PANEL} flex flex-col justify-center lg:flex-1`}>
+              <InfoRow label="Status">
+                <span className="font-bold" style={{ color: statusColour }}>
+                  {statusLabel}
+                </span>
+              </InfoRow>
+              <InfoRow
+                label="Stream"
+                title={current.streamUrl}
+                className="hidden sm:flex"
+              >
+                {current.streamUrl}
+              </InfoRow>
+              <InfoRow label="Format">{format}</InfoRow>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+===== src/utils/genreColors.js =====
+// One colour per genre. Known genres get a fixed colour; anything else gets a
+// stable colour hashed from its name, so new genres from the API still work.
+// Every colour is bright, so black text is the readable choice on top of it.
+//
+// The palette below was generated by walking the hue wheel in even ~13° steps
+// and alternating lightness so that even hue-neighbours read as different
+// colours. Saturation is kept high throughout — this is a shouting palette.
+
+const KNOWN = {
+  // ---- reds (hue 0–40) ----
+  metal: "#ff0000", // 0°   pure red
+  punk: "#ff2200", // 13°  red-orange
+  latin: "#ff4400", // 26°  burnt orange
+  christian: "#0f7476",
+
+  // ---- oranges (hue 40–70) ----
+  rock: "#ff6600", // 39°  orange
+  variety: "#ff8800", // 52°  light orange
+  religious: "#ffaa00", // 65°  amber
+
+  // ---- yellows (hue 70–110) ----
+  gospel: "#ffcc00", // 78°  golden yellow
+  jazz: "#ddee00", // 91°  olive yellow
+  soul: "#aaff00", // 104° lime
+
+  // ---- greens (hue 110–170) ----
+  country: "#66ee00", // 117° chartreuse
+  reggae: "#22ff22", // 130° grass green
+  afrobeats: "#00ee66", // 143° spring green
+  afrobeat: "#00ee66",
+  sports: "#00dd99", // 156° sea green
+
+  // ---- cyans / teals (hue 170–210) ----
+  world: "#00ddaa", // 169° teal
+  electronic: "#00dddd", // 182° cyan
+  ambient: "#00bbff", // 195° sky blue
+
+  // ---- blues (hue 210–270) ----
+  news: "#0088ff", // 208° pure blue
+  blues: "#0066dd", // 221° deep blue
+  talk: "#3344ff", // 234° indigo
+
+  // ---- purples (hue 270–320) ----
+  classical: "#7700ff", // 260° violet
+  dance: "#aa00ff", // 273° purple
+
+  // ---- magentas / pinks (hue 320–360) ----
+  "hip hop": "#dd00ff", // 292° magenta
+  pop: "#ff00cc", // 307° hot pink
+  indie: "#ff0099", // 320° rose
+  "r&b": "#ff0066", // 334° crimson pink
+  oldies: "#ff3399", // 347° salmon pink
+
+  // ---- neutral ----
+  unknown: "#a1a1aa", // grey (no hue)
+};
+
+// Stable palette for genres the API returns that aren't in KNOWN. Every entry
+// is a distinct darker shade in a family that no KNOWN entry uses — so an
+// unknown genre never collides with a known one.
+const FALLBACK = [
+  "#cc0000", // dark red
+  "#cc6600", // brown-orange
+  "#cccc00", // mustard
+  "#66cc00", // grass green
+  "#00cc66", // emerald
+  "#00cccc", // turquoise
+  "#0066cc", // steel blue
+  "#6600cc", // royal purple
+  "#cc00cc", // orchid
+  "#cc0066", // raspberry
+];
+
+export function getGenreColor(genre) {
+  const key = (genre || "unknown").trim().toLowerCase();
+  if (KNOWN[key]) return KNOWN[key];
+
+  let h = 0;
+  for (let i = 0; i < key.length; i++) {
+    h = (h * 31 + key.charCodeAt(i)) | 0;
+  }
+  return FALLBACK[(h >>> 0) % FALLBACK.length];
+}
+
+// Black or white, whichever reads better on the given #rrggbb colour.
+export function readableOn(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? "#000000" : "#ffffff";
+}
+
+===== tailwind.config.js =====
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+===== vite.config.js =====
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+

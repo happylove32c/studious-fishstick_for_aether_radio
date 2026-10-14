@@ -1,55 +1,73 @@
-import { Radio, Headphones, Heart } from "lucide-react";
+import { Headphones, Heart } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { usePlayer } from "../context/usePlayer";
 import NetworkIndicator from "./NetworkIndicator";
 
 export default function Header() {
-  const { isPlaying, status } = usePlayer();
-  const live = isPlaying && status === "connected";
   const { pathname } = useLocation();
 
-  const navItem = (to, label, icon) => {
+  const navItem = (to, label) => {
     const active =
       pathname === to || (to === "/" && pathname.startsWith("/genre"));
     return (
       <Link
         to={to}
-        className={`hidden items-center gap-1.5 text-xs uppercase tracking-[0.25em] transition-colors sm:inline-flex ${
-          active ? "text-white" : "text-white/40 hover:text-white"
+        className={`hidden items-center justify-center rounded-pill border-2 border-ink px-3.5 py-1 text-xs font-bold uppercase tracking-wider transition-transform duration-tactile ease-spring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream sm:inline-flex ${
+          active
+            ? "bg-ink text-cream shadow-hard-sm"
+            : "bg-panel text-ink hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-sm active:translate-x-0.5 active:translate-y-0.5"
         }`}
       >
-        {icon}
         <span>{label}</span>
       </Link>
     );
   };
 
-  return (
-    <header className="sticky top-0 z-50 flex items-center justify-between gap-3 border-b border-white/20 px-4 py-4 backdrop-blur-md sm:px-6 sm:py-5 md:px-10">
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-        <Headphones className="h-5 w-5 shrink-0 text-white/40 sm:h-6 sm:w-6" />
+  const favActive = pathname === "/favorites";
 
+  return (
+    <header className="sticky top-0 z-50 flex items-center justify-between gap-3 border-b-3 border-ink bg-cream px-4 py-3 sm:px-6 sm:py-4 md:px-10">
+      <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
+        {/* Chunky Logo Mark */}
         <Link
           to="/"
-          className="truncate text-[11px] font-bold tracking-[0.25em] text-white/40 transition-colors hover:text-white sm:text-xs sm:tracking-[0.35em]"
+          className="group flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+          aria-label="Aether FM Home"
         >
-          AETHER FM
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-hard group-active:translate-x-0.5 group-active:translate-y-0.5 sm:h-11 sm:w-11">
+            <Headphones className="h-5 w-5 text-ink sm:h-5.5 sm:w-5.5" strokeWidth={2.5} />
+          </div>
+
+          <span className="truncate font-fredoka text-lg font-bold tracking-wide text-ink transition-colors sm:text-xl md:text-2xl">
+            AETHER FM
+          </span>
         </Link>
 
-        <span className="hidden h-px w-10 shrink-0 bg-white/30 sm:block" />
+        <span className="hidden h-5 w-0.5 shrink-0 bg-ink/20 sm:block" />
 
-        {navItem("/", "Stations")}
-        {navItem("/favorites", "Favorites", <Heart className="h-3.5 w-3.5" />)}
+        <nav aria-label="Main Navigation" className="flex items-center gap-2">
+          {navItem("/", "Stations")}
+          {navItem("/favorites", "Favorites")}
+        </nav>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2.5 text-[11px] uppercase tracking-[0.2em] text-white sm:gap-4 sm:text-xs sm:tracking-[0.25em]">
+      <div className="flex shrink-0 items-center gap-2">
         <NetworkIndicator />
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <Radio
-            className={`h-3.5 w-3.5 ${live ? "animate-pulse text-white" : "text-white/30"}`}
+
+        {/* Mobile-only Favorites icon button — hidden sm+ where text nav shows */}
+        <Link
+          to="/favorites"
+          aria-label="Favorites"
+          className={`relative flex h-10 w-10 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream before:absolute before:inset-[-2px] before:content-[''] sm:hidden ${
+            favActive
+              ? "bg-ink text-cream"
+              : "bg-panel text-ink"
+          }`}
+        >
+          <Heart
+            className={`h-5 w-5 ${favActive ? "fill-current" : ""}`}
+            strokeWidth={2.5}
           />
-          <span>{live ? "Live" : "Off air"}</span>
-        </div>
+        </Link>
       </div>
     </header>
   );

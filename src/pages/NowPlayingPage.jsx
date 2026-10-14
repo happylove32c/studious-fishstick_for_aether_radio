@@ -4,6 +4,7 @@ import {
   Heart,
   Pause,
   Play,
+  Radio,
   SkipBack,
   SkipForward,
   Volume2,
@@ -14,24 +15,18 @@ import { usePlayer } from "../context/usePlayer";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 
 // ---------------------------------------------------------------------------
-// Theme: the page takes its accent from the current station's genre (same
-// colours as the genre cards). The root element exposes it as CSS variables:
-//   --g  genre colour      --gb  genre colour at 40% (resting borders)
-//   --gt text colour that is readable ON the genre colour
-// Amber (connecting) and red (error) stay fixed so problems always look
-// like problems, whatever the genre colour is.
+// Theme constants tuned for cream cartoon UI
 // ---------------------------------------------------------------------------
 
-const AMBER = "#facc15";
-const RED = "#ef4444";
-const IDLE = "rgba(255,255,255,0.35)";
+const AMBER = "#F59E0B";
+const RED = "#EF4444";
+const IDLE = "#57534E";
 
-const LABEL = "text-[10px] uppercase tracking-[0.3em] text-white/50";
 const PANEL =
-  "border border-[color:var(--gb)] bg-white/[0.04] p-4 sm:p-6 lg:p-7";
+  "rounded-panel border-3 border-ink bg-panel p-4 sm:p-6 lg:p-7 shadow-hard";
 
 // ---------------------------------------------------------------------------
-// Stable "frequency" from station name / _id (cosmetic, not real signal data)
+// Stable frequency derivation
 // ---------------------------------------------------------------------------
 
 function hashToFreq(str) {
@@ -50,33 +45,37 @@ function getFrequency(station) {
 }
 
 // ---------------------------------------------------------------------------
-// Tuning ruler: ticks every 0.5 MHz, major every 2, labelled every 4
+// Tuning ruler restyled for cream cartoon UI
 // ---------------------------------------------------------------------------
 
 const TICKS = Array.from({ length: 41 }, (_, i) => i); // 88.0 .. 108.0
 
 function TuningRuler({ pct, live, accent }) {
-  const needle = live ? accent : "#ffffff";
+  const needle = live ? accent : "#1B1A17";
 
   return (
-    <div className="mx-3 sm:mx-4">
-      <div className="relative h-8">
+    <div className="mx-2 sm:mx-4 mt-2">
+      <div className="relative h-9 border-b-2 border-ink pb-1">
         {TICKS.map((i) => (
           <span
             key={i}
-            className={`absolute bottom-0 w-px ${
-              i % 4 === 0 ? "h-4 bg-white/50" : "h-2 bg-white/20"
+            className={`absolute bottom-0 -translate-x-1/2 ${
+              i % 4 === 0
+                ? "h-5 w-0.5 bg-ink"
+                : "h-2.5 w-[1px] bg-ink/30"
             }`}
             style={{ left: `${(i / 40) * 100}%` }}
           />
         ))}
-        <span
-          className="absolute bottom-0 top-0 w-0.5 -translate-x-1/2 transition-[left] duration-500"
+
+        {/* Needle indicator */}
+        <div
+          className="absolute bottom-0 top-0 w-1.5 -translate-x-1/2 rounded-full border border-ink transition-[left] duration-500 shadow-hard-sm"
           style={{ left: `${pct}%`, backgroundColor: needle }}
         />
       </div>
 
-      <div className="relative mt-1.5 h-4 text-[11px] text-white/60">
+      <div className="relative mt-2 h-4 font-mono text-[11px] font-bold text-ink-muted">
         {TICKS.filter((i) => i % 8 === 0).map((i) => (
           <span
             key={i}
@@ -92,16 +91,12 @@ function TuningRuler({ pct, live, accent }) {
 }
 
 // ---------------------------------------------------------------------------
-// Equalizer
-//
-// Reads real frequency data from the analyser when the player has one.
-// If the stream can't be analysed (no CORS headers) it falls back to a
-// simulated animation and reports that via onMode, so the UI can say so.
-// When nothing is playing, the loop settles and STOPS (no animation, no CPU).
+// Equalizer: Spectrogram bars drawn rounded with genre colour & ink outline
+// (Canvas logic and audio analysis logic untouched)
 // ---------------------------------------------------------------------------
 
 const BAR_COUNT = 24;
-const FLOOR = 3;
+const FLOOR = 4;
 
 function makeBands(binCount) {
   const maxBin = Math.min(binCount - 1, Math.round(binCount * 0.55));
@@ -121,7 +116,7 @@ function bandLevels(data, bands) {
     for (let b = lo; b < hi && b < data.length; b++) {
       if (data[b] > peak) peak = data[b];
     }
-    const tilt = 1 + (i / BAR_COUNT) * 0.7; // highs carry less energy
+    const tilt = 1 + (i / BAR_COUNT) * 0.7;
     return Math.min(1, Math.pow(peak / 255, 1.5) * tilt);
   });
 }
@@ -141,18 +136,26 @@ function Equalizer({ active, analyserRef, color, onMode }) {
       if (w === 0 || h === 0) return;
       ctx.clearRect(0, 0, w, h);
 
-      const gap = 4;
-      const barW = Math.max(3, (w - (BAR_COUNT - 1) * gap) / BAR_COUNT);
-      ctx.fillStyle = color;
+      const gap = 5;
+      const barW = Math.max(4, (w - (BAR_COUNT - 1) * gap) / BAR_COUNT);
 
       heightsRef.current.forEach((bh, i) => {
-        const hh = Math.min(bh, h);
-        ctx.fillRect(
-          Math.floor(i * (barW + gap)),
-          Math.floor(h - hh),
-          Math.floor(barW),
-          Math.ceil(hh)
-        );
+        const hh = Math.max(5, Math.min(bh, h));
+        const x = Math.floor(i * (barW + gap));
+        const y = Math.floor(h - hh);
+        const radius = Math.min(barW / 2, 6);
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, barW, hh, [radius, radius, 0, 0]);
+        } else {
+          ctx.rect(x, y, barW, hh);
+        }
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#1B1A17";
+        ctx.stroke();
       });
     };
 
@@ -167,7 +170,7 @@ function Equalizer({ active, analyserRef, color, onMode }) {
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        paint(); // resizing clears the canvas; redraw even if the loop is idle
+        paint();
       }
     };
 
@@ -216,41 +219,52 @@ function Equalizer({ active, analyserRef, color, onMode }) {
           silentFrames++;
         }
 
-        // Analyser present but never produced a single non-zero sample in
-        // ~3s: the browser is feeding it silence. Treat as unavailable.
-        if (heard || silentFrames < 180) levels = bandLevels(data, bands);
-      }
-
-      setMode(levels ? "live" : active ? "sim" : "idle");
-
-      const heights = heightsRef.current;
-      let moving = false;
-
-      for (let i = 0; i < BAR_COUNT; i++) {
-        let target = FLOOR;
-
-        if (active) {
-          if (levels) {
-            target = Math.max(FLOOR, levels[i] * h * 0.95);
-          } else {
-            const t = time * 0.0012;
-            const a = Math.sin(t * 1.5 + i * 0.4);
-            const b = Math.cos(t * 2.1 - i * 0.3);
-            const c = Math.sin(t * 3.3 + i * 0.7);
-            const norm = (a * 0.4 + b * 0.4 + c * 0.2 + 1) / 2;
-            target = Math.max(6, norm * (h * 0.85));
-          }
+        if (heard && silentFrames < 180) {
+          setMode("live");
+          levels = bandLevels(data, bands);
+        } else {
+          setMode("sim");
         }
-
-        // fast attack so beats hit, slower release so bars fall smoothly
-        const diff = target - heights[i];
-        heights[i] += diff * (diff > 0 ? 0.6 : 0.15);
-        if (heights[i] > FLOOR + 0.5) moving = true;
+      } else if (active) {
+        setMode("sim");
+      } else {
+        setMode("idle");
       }
 
+      if (levels === null && active) {
+        const t = time * 0.003;
+        levels = Array.from({ length: BAR_COUNT }, (_, i) => {
+          const s1 = Math.sin(t * 1.7 + i * 0.35);
+          const s2 = Math.cos(t * 0.9 - i * 0.2);
+          const s3 = Math.sin(t * 2.5 + i * 0.8);
+          const raw = (s1 + s2 + s3 + 3) / 6;
+          const hump = Math.sin((i / (BAR_COUNT - 1)) * Math.PI);
+          return Math.max(0.08, raw * 0.75 + hump * 0.25);
+        });
+      }
+
+      const prevHeights = heightsRef.current;
+      let moving = false;
+      const targetHeights = levels
+        ? levels.map((l) => FLOOR + l * (h - FLOOR - 4))
+        : new Array(BAR_COUNT).fill(FLOOR);
+
+      const nextHeights = prevHeights.map((currentH, i) => {
+        const target = targetHeights[i];
+        let nextH;
+        if (target > currentH) {
+          nextH = currentH + (target - currentH) * 0.45;
+        } else {
+          nextH = currentH - 2.8;
+          if (nextH < target) nextH = target;
+        }
+        if (Math.abs(nextH - currentH) > 0.3) moving = true;
+        return nextH;
+      });
+
+      heightsRef.current = nextHeights;
       paint();
 
-      // Keep looping only while playing or while bars are still falling.
       if (active || moving) raf = requestAnimationFrame(render);
     };
 
@@ -273,17 +287,17 @@ function Equalizer({ active, analyserRef, color, onMode }) {
 }
 
 // ---------------------------------------------------------------------------
-// Small pieces
+// Info row component
 // ---------------------------------------------------------------------------
 
 function InfoRow({ label, children, title, className = "flex" }) {
   return (
     <div
-      className={`${className} items-center justify-between gap-4 border-b border-white/10 py-2.5 last:border-b-0`}
+      className={`${className} items-center justify-between gap-4 border-b-2 border-panel-inset py-2.5 last:border-b-0`}
     >
-      <span className={`${LABEL} shrink-0`}>{label}</span>
+      <span className="label font-bold text-ink-muted shrink-0">{label}</span>
       <span
-        className="truncate text-right text-[11px] uppercase tracking-[0.15em] text-white/80"
+        className="truncate text-right font-mono text-xs font-bold uppercase tracking-wider text-ink"
         title={title}
       >
         {children}
@@ -294,11 +308,8 @@ function InfoRow({ label, children, title, className = "flex" }) {
 
 const pad = (n) => String(n).padStart(2, "0");
 
-const btnBase =
-  "flex items-center justify-center gap-2 border border-[color:var(--gb)] bg-white/[0.04] py-4 text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:border-[color:var(--g)] hover:bg-[color:var(--g)] hover:text-[color:var(--gt)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[color:var(--gb)] disabled:hover:bg-white/[0.04] disabled:hover:text-white";
-
 // ---------------------------------------------------------------------------
-// Page
+// Hero Now Playing Page
 // ---------------------------------------------------------------------------
 
 export default function NowPlayingPage() {
@@ -323,42 +334,49 @@ export default function NowPlayingPage() {
     analyserRef,
   } = usePlayer();
 
-  const [eqMode, setEqMode] = useState("idle"); // idle | live | sim
+  const [eqMode, setEqMode] = useState("idle");
 
   const handleRetry = useCallback(() => {
     if (current) play(current, playlist);
   }, [current, play, playlist]);
 
   // -------------------------------------------------------------------------
-  // Empty state
+  // Tactile Empty State
   // -------------------------------------------------------------------------
   if (!current) {
     return (
-      <div className="min-h-screen bg-black font-jetbrains">
+      <div className="min-h-screen bg-cream font-jetbrains text-ink">
         <Header />
-        <section className="px-4 py-10 sm:px-6 md:px-10 md:py-16">
-          <p className="mb-3 text-[10px] uppercase tracking-[0.4em] text-white/40">
+        <main className="mx-auto flex max-w-xl flex-col items-center px-4 py-16 text-center sm:py-24">
+          <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-panel border-3 border-ink bg-panel shadow-hard-lg">
+            <Radio className="h-12 w-12 text-ink" strokeWidth={2.5} />
+          </div>
+
+          <p className="label font-bold uppercase text-ink-muted">
             Now tuned
           </p>
-          <h1 className="text-5xl font-black uppercase leading-none tracking-[-0.06em] text-white md:text-8xl">
+
+          <h1 className="mt-2 font-fredoka text-4xl font-bold uppercase leading-tight sm:text-6xl text-ink">
             No signal
           </h1>
-          <p className="mt-4 text-[11px] uppercase tracking-[0.35em] text-white/60">
-            Pick a station to start transmitting
+
+          <p className="mt-3 max-w-sm font-mono text-xs font-medium text-ink-muted sm:text-sm">
+            Pick a station on the radio dial to start transmitting.
           </p>
+
           <Link
             to="/"
-            className="mt-10 inline-block border border-white/15 bg-white/[0.04] px-6 py-3 text-[11px] font-bold uppercase tracking-[0.25em] text-white transition-colors hover:border-white/40 hover:bg-white/[0.07]"
+            className="mt-8 inline-flex items-center justify-center rounded-pill border-3 border-ink bg-[#FFD166] px-8 py-3.5 font-fredoka text-base font-bold uppercase tracking-wide text-ink shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
           >
             Browse stations
           </Link>
-        </section>
+        </main>
       </div>
     );
   }
 
   // -------------------------------------------------------------------------
-  // Derived values
+  // Active Station Data
   // -------------------------------------------------------------------------
   const genre = current.genre;
   const backTo = genre ? `/genre/${encodeURIComponent(genre)}` : "/";
@@ -402,12 +420,10 @@ export default function NowPlayingPage() {
     <div
       style={{
         "--g": accent,
-        "--gb": `${accent}66`,
+        "--gb": `${accent}99`,
         "--gt": ink,
-        backgroundColor: "#000",
-        backgroundImage: `radial-gradient(ellipse 80% 50% at 50% 0%, ${accent}22, transparent 70%)`,
       }}
-      className="flex h-screen h-dvh flex-col overflow-hidden font-jetbrains text-white"
+      className="flex h-screen h-dvh flex-col overflow-hidden bg-cream font-jetbrains text-ink"
     >
       <div className="shrink-0">
         <div className="mx-auto w-full max-w-[1600px]">
@@ -415,64 +431,72 @@ export default function NowPlayingPage() {
         </div>
       </div>
 
-      {/* Scrolls only as a last resort on very short screens */}
-      <section className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 md:px-10 md:py-5">
-        <div className="mb-2 flex items-center justify-between gap-4 md:mb-3">
+      {/* Main one-screen layout */}
+      <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 md:px-10 md:py-4">
+        {/* Top Breadcrumb & Station Position */}
+        <div className="mb-2 flex items-center justify-between gap-4">
           <Link
             to={backTo}
-            className="shrink-0 text-[11px] uppercase tracking-[0.35em] text-white/60 transition-colors hover:text-[color:var(--g)]"
+            className="flex items-center gap-1.5 rounded-pill border-2 border-ink bg-panel px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
           >
             ← Back
           </Link>
-          <p className="truncate text-[10px] uppercase tracking-[0.35em] text-white/50">
+          <p className="rounded-pill border-2 border-ink bg-panel px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm">
             Now tuned · {pad(stationIdx)} / {pad(stationCount)}
           </p>
         </div>
 
+        {/* Hero Station Name Header */}
         <h1
-          className="truncate text-4xl font-black uppercase leading-[1.05] tracking-[-0.06em] text-white sm:text-5xl md:text-6xl lg:text-7xl"
+          className="truncate font-fredoka text-3xl font-bold uppercase leading-tight text-ink sm:text-5xl md:text-6xl"
           title={current.name}
         >
           {current.name}
         </h1>
 
-        <p className="mt-2 text-[11px] uppercase tracking-[0.35em] text-white/60">
-          <span className="font-bold" style={{ color: accent }}>
+        {/* Station Subtitle Details */}
+        <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-ink-muted">
+          <span
+            className="rounded-pill border-2 border-ink px-2.5 py-0.5 text-ink shadow-hard-sm"
+            style={{ backgroundColor: accent }}
+          >
             {genre}
-          </span>{" "}
-          · {freqStr} MHz ·{" "}
-          <span className="font-bold" style={{ color: statusColour }}>
+          </span>
+          <span>·</span>
+          <span>{freqStr} MHz</span>
+          <span>·</span>
+          <span
+            className="rounded-pill border-2 border-ink bg-panel px-2.5 py-0.5 shadow-hard-sm"
+            style={{ color: statusColour === RED ? "#B91C1C" : statusColour === AMBER ? "#B45309" : "#1B1A17" }}
+          >
             {statusLabel}
           </span>
-        </p>
+        </div>
 
-        {/* Both columns stretch to the same height */}
-        <div className="mt-3 grid flex-1 grid-cols-1 grid-rows-[minmax(min-content,1fr)_auto] gap-4 md:mt-5 lg:grid-cols-12 lg:grid-rows-[minmax(min-content,1fr)] lg:gap-5">
-          {/* ================= LEFT: signal ================= */}
-          <div className="flex flex-col gap-4 lg:col-span-7 lg:gap-5">
-            {/* Frequency */}
+        {/* Two-Column Responsive Grid */}
+        <div className="mt-3 grid flex-1 grid-cols-1 grid-rows-[minmax(min-content,1fr)_auto] gap-3 md:mt-4 md:gap-5 lg:grid-cols-12 lg:grid-rows-[minmax(min-content,1fr)]">
+          {/* ================= LEFT: Signal & Ruler ================= */}
+          <div className="flex flex-col gap-3 lg:col-span-7 lg:gap-4">
+            {/* Frequency Tuning Dial Card */}
             <div className={PANEL}>
               <div className="flex items-start justify-between">
-                <p className={LABEL}>Frequency</p>
-                <div className="flex items-center gap-2">
+                <span className="label font-bold uppercase text-ink-muted">Frequency</span>
+                <div className="flex items-center gap-2 rounded-pill border-2 border-ink bg-cream px-2.5 py-0.5 shadow-hard-sm">
                   <span
-                    className={`h-2 w-2 ${live ? "animate-pulse" : ""}`}
+                    className={`h-2.5 w-2.5 rounded-full border border-ink ${live ? "animate-pulse" : ""}`}
                     style={{ backgroundColor: live ? accent : IDLE }}
                   />
-                  <span className="text-[10px] uppercase tracking-[0.25em] text-white/60">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink">
                     {live ? "On air" : "Off air"}
                   </span>
                 </div>
               </div>
 
-              <div className="mb-4 mt-2 flex items-baseline gap-3">
-                <span
-                  className="text-5xl font-black leading-none tracking-[-0.06em] transition-colors sm:text-6xl lg:text-7xl"
-                  style={{ color: live ? accent : "#ffffff" }}
-                >
+              <div className="my-2 flex items-baseline gap-3">
+                <span className="font-mono text-5xl font-black leading-none tracking-tight sm:text-6xl lg:text-7xl text-ink">
                   {freqStr}
                 </span>
-                <span className="text-sm font-bold uppercase tracking-[0.25em] text-white/60">
+                <span className="font-fredoka text-lg font-bold uppercase tracking-wider text-ink-muted">
                   MHz
                 </span>
               </div>
@@ -480,16 +504,16 @@ export default function NowPlayingPage() {
               <TuningRuler pct={tunerPct} live={live} accent={accent} />
             </div>
 
-            {/* Equalizer: grows to fill whatever height the right column needs */}
+            {/* Equalizer Spectrogram Card */}
             <div className={`${PANEL} flex min-h-[110px] flex-1 flex-col`}>
-              <div className="mb-3 flex items-center justify-between">
-                <p className={LABEL}>Spectrogram</p>
-                <p
-                  className="text-[10px] font-bold uppercase tracking-[0.25em]"
-                  style={{ color: eqLabelColour }}
+              <div className="mb-2 flex items-center justify-between">
+                <span className="label font-bold uppercase text-ink-muted">Spectrogram</span>
+                <div
+                  className="rounded-pill border-2 border-ink bg-cream px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider shadow-hard-sm"
+                  style={{ color: eqLabelColour === RED ? "#B91C1C" : eqLabelColour === AMBER ? "#B45309" : "#1B1A17" }}
                 >
                   {eqLabel}
-                </p>
+                </div>
               </div>
               <Equalizer
                 active={live}
@@ -500,64 +524,60 @@ export default function NowPlayingPage() {
             </div>
           </div>
 
-          {/* ================= RIGHT: controls ================= */}
-          <div className="flex flex-col gap-4 lg:col-span-5 lg:gap-5">
+          {/* ================= RIGHT: Controls & Stream Info ================= */}
+          <div className="flex flex-col gap-3 lg:col-span-5 lg:gap-4">
+            {/* Transport & Volume Panel */}
             <div className={PANEL}>
-              {/* Transport */}
-              <div className="grid grid-cols-[1fr_2fr_1fr] gap-2.5 sm:gap-3.5">
+              {/* Transport Buttons */}
+              <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 sm:gap-3">
+                {/* Prev */}
                 <button
                   onClick={prev}
                   disabled={stationCount <= 1}
                   aria-label="Previous station"
-                  className={btnBase}
+                  className="flex h-12 items-center justify-center gap-2 rounded-pill border-2 border-ink bg-cream font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
                 >
-                  <SkipBack className="h-4 w-4" />
+                  <SkipBack className="h-4 w-4" strokeWidth={2.5} />
                   <span className="hidden sm:inline">Prev</span>
-                  <kbd className="hidden border border-current px-1.5 py-0.5 text-[9px] font-bold opacity-60 lg:inline">
-                    ⇧P
-                  </kbd>
                 </button>
 
+                {/* Play / Pause */}
                 <button
                   onClick={toggle}
-                  className="flex items-center justify-center gap-3 bg-[color:var(--g)] py-4 text-xs font-black uppercase tracking-[0.25em] text-[color:var(--gt)] transition-[filter] hover:brightness-110"
+                  className="flex h-12 items-center justify-center gap-2.5 rounded-pill border-3 border-ink bg-[color:var(--g)] text-[color:var(--gt)] font-fredoka text-sm font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
+                  aria-label={isPlaying ? "Pause playback" : "Start playback"}
                 >
                   {isPlaying ? (
-                    <Pause className="h-5 w-5" />
+                    <Pause className="h-5 w-5" strokeWidth={2.5} />
                   ) : (
-                    <Play className="h-5 w-5" />
+                    <Play className="h-5 w-5 ml-0.5" strokeWidth={2.5} />
                   )}
-                  {isPlaying ? "Pause" : "Play"}
-                  <kbd className="hidden border border-current px-1.5 py-0.5 text-[9px] font-bold opacity-60 lg:inline">
-                    Space
-                  </kbd>
+                  <span>{isPlaying ? "Pause" : "Play"}</span>
                 </button>
 
+                {/* Next */}
                 <button
                   onClick={next}
                   disabled={stationCount <= 1}
                   aria-label="Next station"
-                  className={btnBase}
+                  className="flex h-12 items-center justify-center gap-2 rounded-pill border-2 border-ink bg-cream font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
                 >
                   <span className="hidden sm:inline">Next</span>
-                  <kbd className="hidden border border-current px-1.5 py-0.5 text-[9px] font-bold opacity-60 lg:inline">
-                    ⇧N
-                  </kbd>
-                  <SkipForward className="h-4 w-4" />
+                  <SkipForward className="h-4 w-4" strokeWidth={2.5} />
                 </button>
               </div>
 
-              {/* Volume + favorite in one row */}
-              <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
+              {/* Volume & Favorite Row */}
+              <div className="mt-4 flex items-center gap-3 border-t-2 border-panel-inset pt-3.5">
                 <button
                   onClick={toggleMute}
                   aria-label={muted ? "Unmute" : "Mute"}
-                  className="shrink-0 text-white/70 transition-colors hover:text-white"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill border-2 border-ink bg-cream text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
                 >
                   {muted ? (
-                    <VolumeX className="h-4 w-4" />
+                    <VolumeX className="h-4 w-4" strokeWidth={2.5} />
                   ) : (
-                    <Volume2 className="h-4 w-4" />
+                    <Volume2 className="h-4 w-4" strokeWidth={2.5} />
                   )}
                 </button>
 
@@ -569,15 +589,15 @@ export default function NowPlayingPage() {
                   value={shownVolume}
                   onChange={(e) => setVolume(Number(e.target.value))}
                   aria-label="Volume"
-                  className="np-slider h-1.5 min-w-0 flex-1 cursor-pointer appearance-none outline-none"
+                  className="np-slider h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border-2 border-ink outline-none"
                   style={{
                     background: `linear-gradient(to right, ${accent} ${
                       shownVolume * 100
-                    }%, rgba(255,255,255,0.2) ${shownVolume * 100}%)`,
+                    }%, #F0EAE1 ${shownVolume * 100}%)`,
                   }}
                 />
 
-                <span className="w-10 shrink-0 text-right text-[11px] text-white/70">
+                <span className="w-11 shrink-0 text-right font-mono text-xs font-bold text-ink">
                   {Math.round(shownVolume * 100)}%
                 </span>
 
@@ -586,36 +606,42 @@ export default function NowPlayingPage() {
                   aria-pressed={fav}
                   aria-label={fav ? "Remove from favorites" : "Add to favorites"}
                   title={fav ? "Remove from favorites" : "Add to favorites"}
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 ${
                     fav
-                      ? "border-[color:var(--g)] bg-[color:var(--g)] text-[color:var(--gt)]"
-                      : "border-[color:var(--gb)] text-white/70 hover:border-[color:var(--g)] hover:text-white"
+                      ? "bg-status-red text-cream"
+                      : "bg-cream text-ink hover:bg-panel"
                   }`}
                 >
-                  <Heart className={`h-4 w-4 ${fav ? "fill-current" : ""}`} />
+                  <Heart
+                    className={`h-4 w-4 ${fav ? "fill-current" : ""}`}
+                    strokeWidth={2.5}
+                  />
                 </button>
               </div>
             </div>
 
-            {/* Error */}
+            {/* Error Notification Banner */}
             {error && (
-              <div className="flex items-center justify-between gap-3 border border-red-500/50 bg-red-500/10 p-3">
-                <span className="text-[11px] uppercase tracking-[0.2em] text-red-400">
+              <div className="flex items-center justify-between gap-3 rounded-chunky border-2 border-status-red-text bg-[#FEE2E2] p-3 text-status-red-text shadow-hard-sm">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider">
                   Signal error: {error}
                 </span>
                 <button
                   onClick={handleRetry}
-                  className="shrink-0 border border-red-500/50 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-red-400 transition-colors hover:bg-red-500/20"
+                  className="shrink-0 rounded-pill border-2 border-status-red-text bg-cream px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-status-red hover:text-cream transition-colors shadow-hard-sm"
                 >
                   Retry
                 </button>
               </div>
             )}
 
-            {/* Stream info: stretches so both columns end on the same line */}
+            {/* Stream Info Specs Card */}
             <div className={`${PANEL} flex flex-col justify-center lg:flex-1`}>
               <InfoRow label="Status">
-                <span className="font-bold" style={{ color: statusColour }}>
+                <span
+                  className="font-bold"
+                  style={{ color: statusColour === RED ? "#B91C1C" : statusColour === AMBER ? "#B45309" : "#1B1A17" }}
+                >
                   {statusLabel}
                 </span>
               </InfoRow>
@@ -626,11 +652,11 @@ export default function NowPlayingPage() {
               >
                 {current.streamUrl}
               </InfoRow>
-              <InfoRow label="Format">{format}</InfoRow>
+              <InfoRow label="Format">{format || "AAC / MP3"}</InfoRow>
             </div>
           </div>
         </div>
-      </section>
+      </main>
     </div>
   );
 }

@@ -17,103 +17,103 @@ export default function StationCard({ number, station, playlist, genre }) {
   const ink = readableOn(color);
 
   const handleClick = () => {
-    if (isCurrentStation && status !== "error") {
-      navigate("/now-playing");
-    } else {
+    if (!isCurrentStation || status === "error") {
       play(station, playlist || [station]);
-      navigate("/now-playing");
     }
+    navigate("/now-playing");
   };
 
   const handleFav = (e) => {
     e.stopPropagation();
     toggleFavorite(station);
   };
-
-  // --g: genre colour, --gb: same colour at 60% for the resting border,
-  // --gt: text colour that stays readable on the filled (hover) background.
   return (
-    // `group` lives on the WRAPPER. Hovering the heart (a child of the
-    // wrapper) therefore keeps the group "hovered", so the card body stays
-    // filled while your pointer is on the heart.
     <div
       style={{ "--g": color, "--gb": `${color}99`, "--gt": ink }}
-      className="group relative aspect-square w-full"
+      className="group relative min-h-[160px] w-full sm:aspect-square sm:min-h-0"
     >
       <button
         onClick={handleClick}
-        className={`flex h-full w-full flex-col justify-between overflow-hidden border border-[color:var(--gb)] p-3 text-left text-white transition-colors duration-300 group-hover:border-[color:var(--g)] group-hover:bg-[color:var(--g)] group-hover:text-[color:var(--gt)] sm:p-5 md:p-6 ${
-          live
-            ? "bg-white/[0.08] shadow-[inset_0_0_0_1px_var(--g)]"
-            : isCurrentStation
-            ? "bg-white/[0.07]"
-            : "bg-white/[0.03]"
-        }`}
+        className={`flex h-full w-full flex-col justify-between rounded-card border-3 border-ink bg-[color:var(--g)] p-3.5 text-left text-[color:var(--gt)] shadow-hard transition-transform duration-tactile ease-spring group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream sm:p-5 md:p-6`}
       >
-        <div className="flex items-start justify-between">
+        {/* Top bar: Number & Live Badge */}
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] tracking-[0.25em] opacity-60 sm:tracking-[0.3em]">
+            <span className="whitespace-nowrap rounded-pill border-2 border-ink bg-panel/30 px-2.5 py-0.5 font-mono text-[11px] font-bold tracking-widest sm:text-xs">
               {number}
             </span>
             {live && (
-              <AudioLines className="h-3.5 w-3.5 animate-pulse sm:h-4 sm:w-4" />
+              <>
+                {/* Mobile: icon-only round sticker */}
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-panel shadow-hard-sm sm:hidden">
+                  <AudioLines className="h-3.5 w-3.5 text-status-green-text" strokeWidth={2.5} />
+                  <span className="sr-only">On air</span>
+                </div>
+                {/* Desktop: full pill */}
+                <div className="hidden whitespace-nowrap items-center gap-1.5 rounded-pill border-2 border-ink bg-panel px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-ink shadow-hard-sm sm:flex sm:text-xs">
+                  <AudioLines className="h-3.5 w-3.5 text-status-green-text" strokeWidth={2.5} />
+                  <span>ON AIR</span>
+                </div>
+              </>
             )}
           </div>
-          {/* Space reserved for the absolutely-positioned heart sibling. */}
-          <span className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden="true" />
+          {/* Space reserved for the heart sticker button */}
+          <span className="h-9 w-9 shrink-0 sm:h-9 sm:w-9" aria-hidden="true" />
         </div>
 
-        <div className="my-auto py-1">
-          <p className="mb-1 text-[9px] uppercase tracking-[0.3em] opacity-60 sm:mb-2 sm:text-[10px] sm:tracking-[0.35em]">
+        {/* Station Name & Genre */}
+        <div className="my-auto min-w-0 py-1">
+          <span className="label font-bold uppercase text-[color:var(--gt)]">
             Station
-          </p>
-          <h2 className="line-clamp-2 break-words text-base font-black uppercase leading-tight tracking-[-0.03em] sm:text-2xl sm:leading-7 md:text-3xl md:leading-8">
+          </span>
+          <span className="line-clamp-2 break-words font-fredoka text-lg font-bold uppercase leading-tight sm:text-2xl md:text-3xl">
             {station.name}
-          </h2>
-          <p className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.25em] opacity-80 sm:mt-2 sm:text-[10px] sm:tracking-[0.3em]">
+          </span>
+          <span className="mt-1.5 block font-mono text-xs font-bold uppercase tracking-wider">
             {cardGenre}
-          </p>
+          </span>
         </div>
 
-        <div className="flex flex-col gap-2.5 sm:gap-3.5">
-          <div className="h-px bg-current opacity-20" />
+        {/* Bottom row */}
+        <div className="flex flex-col gap-2">
+          <div className="h-0.5 w-full bg-ink/20 rounded-full" />
 
           <div className="flex items-center justify-between">
-            <span
-              className={`text-[9px] uppercase tracking-[0.2em] sm:text-[10px] sm:tracking-[0.25em] ${
-                live ? "font-bold" : "opacity-60"
-              }`}
-            >
+            <span className="whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-wider sm:text-xs">
               {live ? "Playing" : "Listen"}
             </span>
 
-            {live ? (
-              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 sm:h-4 sm:w-4" />
-            ) : (
-              <Play className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 sm:h-4 sm:w-4" />
-            )}
+            <div className="flex h-7 w-7 items-center justify-center rounded-pill border-2 border-ink bg-panel/20 transition-transform duration-tactile ease-spring group-hover:translate-x-1 sm:h-8 sm:w-8">
+              {live ? (
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              ) : (
+                <Play className="h-4 w-4 ml-0.5" strokeWidth={2.5} />
+              )}
+            </div>
           </div>
         </div>
       </button>
 
       {/*
-        Heart — sibling of the card body, but INSIDE the group wrapper, so
-        hovering it keeps the card filled. It has no group-hover classes of
-        its own, so its appearance doesn't change with the card.
+        Round sticker heart button:
+        Lives inside the group wrapper so hovering it keeps the card hovered,
+        has its own tactile hover lift and press.
+        The before pseudo-element expands the tap area to 44×44.
       */}
       <button
         onClick={handleFav}
         aria-pressed={fav}
         aria-label={fav ? "Remove from favorites" : "Add to favorites"}
         title={fav ? "Remove from favorites" : "Add to favorites"}
-        className={`absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center transition-colors sm:right-3 sm:top-3 sm:h-8 sm:w-8 ${
+        className={`absolute right-2.5 top-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 before:absolute before:inset-[-4px] before:content-[''] sm:right-3.5 sm:top-3.5 ${
           fav
-            ? "text-white hover:text-white"
-            : "text-white/60 hover:text-white"
+            ? "bg-status-red text-cream"
+            : "bg-panel text-ink hover:bg-cream"
         }`}
       >
         <Heart
-          className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${fav ? "fill-current" : ""}`}
+          className={`h-4 w-4 ${fav ? "fill-current" : ""}`}
+          strokeWidth={2.5}
         />
       </button>
     </div>

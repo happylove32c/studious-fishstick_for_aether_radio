@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">aether FM</string>
+    <string name="title_activity_main">aether FM</string>
+    <string name="package_name">me.loveday.aetherfm</string>
+    <string name="custom_url_scheme">me.loveday.aetherfm</string>
+</resources>
