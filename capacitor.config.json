@@ -1,5 +1,8 @@
 {
   "appId": "me.loveday.aetherfm",
   "appName": "aether FM",
-  "webDir": "dist"
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  }
 }

@@ -22,7 +22,7 @@ function HomePage() {
     <div className="min-h-screen bg-cream font-jetbrains text-ink">
       <Header />
 
-      <main className={`px-4 py-8 sm:px-6 md:px-10 md:py-12 ${current ? "pb-32 md:pb-36" : "pb-16"}`}>
+      <main className={`px-4 py-8 sm:px-6 md:px-10 md:py-12 ${current ? "pb-48 md:pb-36" : "pb-28 md:pb-16"}`}>
         <div className="mb-8 sm:mb-12">
           <p className="label font-bold uppercase text-ink-muted">
             Available frequencies

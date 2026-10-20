@@ -1,6 +1,7 @@
-import { Headphones, Heart } from "lucide-react";
+import { Headphones, Heart, Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import NetworkIndicator from "./NetworkIndicator";
+// TODO: re-enable network test
+// import NetworkIndicator from "./NetworkIndicator";
 
 export default function Header() {
   const { pathname } = useLocation();
@@ -23,6 +24,7 @@ export default function Header() {
   };
 
   const favActive = pathname === "/favorites";
+  const searchActive = pathname === "/search";
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between gap-3 border-b-3 border-ink bg-cream px-4 py-3 sm:px-6 sm:py-4 md:px-10">
@@ -46,25 +48,38 @@ export default function Header() {
 
         <nav aria-label="Main Navigation" className="flex items-center gap-2">
           {navItem("/", "Stations")}
-          {navItem("/favorites", "Favorites")}
         </nav>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <NetworkIndicator />
+        {/* TODO: re-enable network test */}
+        {/* <NetworkIndicator /> */}
 
-        {/* Mobile-only Favorites icon button — hidden sm+ where text nav shows */}
+        {/* Search icon button — visible sm+ only */}
         <Link
-          to="/favorites"
-          aria-label="Favorites"
-          className={`relative flex h-10 w-10 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream before:absolute before:inset-[-2px] before:content-[''] sm:hidden ${
-            favActive
+          to="/search"
+          aria-label="Search"
+          className={`group relative hidden h-10 w-10 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream before:absolute before:inset-[-2px] before:content-[''] sm:flex ${
+            searchActive
               ? "bg-ink text-cream"
               : "bg-panel text-ink"
           }`}
         >
+          <Search className="h-5 w-5" strokeWidth={2.5} />
+        </Link>
+
+        {/* Favorites icon button — visible sm+ only (hidden on mobile; bottom bar replaces it) */}
+        <Link
+          to="/favorites"
+          aria-label="Favorites"
+          className="group relative hidden h-10 w-10 items-center justify-center rounded-pill border-2 border-ink bg-panel shadow-hard-sm transition-transform duration-tactile ease-spring active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream before:absolute before:inset-[-2px] before:content-[''] sm:flex"
+        >
           <Heart
-            className={`h-5 w-5 ${favActive ? "fill-current" : ""}`}
+            className={`h-5 w-5 transition-all duration-tactile ${
+              favActive
+                ? "fill-current text-status-red"
+                : "text-ink group-hover:fill-current group-hover:text-status-red"
+            } group-hover:drop-shadow-[0_0_6px_rgba(239,68,68,.7)]`}
             strokeWidth={2.5}
           />
         </Link>

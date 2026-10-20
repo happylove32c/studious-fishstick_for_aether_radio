@@ -1,5 +1,6 @@
 import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import Header from "../components/Header";
 import StationCard from "../components/StationCard";
 import { useStations } from "../context/useStations";
@@ -16,15 +17,10 @@ export default function FavoritesPage() {
       <Header />
       <main
         className={`px-4 py-8 sm:px-6 md:px-10 md:py-12 ${
-          current ? "pb-32 md:pb-36" : "pb-16"
+          current ? "pb-48 md:pb-36" : "pb-28 md:pb-16"
         }`}
       >
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-1.5 rounded-pill border-2 border-ink bg-panel px-3.5 py-1 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
-        >
-          ← Back
-        </Link>
+        <BackLink className="mb-6" />
 
         <p className="label font-bold uppercase text-ink-muted">
           Preset Stations

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Pause, Play, SkipBack, SkipForward, Square, Volume2 } from "lucide-react";
+import { ChevronUp, Pause, Play, SkipBack, SkipForward, Square, Volume2 } from "lucide-react";
 import { usePlayer } from "../context/usePlayer";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 
@@ -38,7 +38,7 @@ export default function PlayerBar() {
       aria-label="Audio Player Dock"
       onClick={handleBarClick}
       style={{ "--g": accent, "--gb": `${accent}99`, "--gt": ink }}
-      className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-w-4xl cursor-pointer select-none overflow-hidden rounded-panel border-3 border-ink bg-panel p-2.5 text-ink shadow-hard-lg transition-transform duration-tactile ease-spring sm:bottom-5 sm:left-6 sm:right-6 sm:p-3.5"
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 mx-auto max-w-4xl cursor-pointer select-none overflow-hidden rounded-panel border-3 border-ink bg-panel p-2.5 text-ink shadow-hard-lg transition-transform duration-tactile ease-spring sm:bottom-5 sm:left-6 sm:right-6 sm:p-3.5"
     >
       {/*
         Ambient blob: restyled for cream background without blur filters.
@@ -111,9 +111,12 @@ export default function PlayerBar() {
           onClick={stopNav}
           className="min-w-0 flex-1 px-1 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 rounded-chunky"
         >
-          <p className="truncate font-fredoka text-base font-bold uppercase leading-tight text-ink sm:text-lg">
-            {current.name}
-          </p>
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="truncate font-fredoka text-base font-bold uppercase leading-tight text-ink sm:text-lg">
+              {current.name}
+            </span>
+            <ChevronUp className="h-4 w-4 shrink-0 text-ink-muted" strokeWidth={2.5} />
+          </div>
           <p className="mt-0.5 truncate font-mono text-xs font-bold uppercase tracking-wider">
             {error ? (
               <span className="text-status-red-text font-bold">Signal Error: {error}</span>
@@ -128,7 +131,7 @@ export default function PlayerBar() {
         {/* Volume Slider */}
         <div
           onClick={stopNav}
-          className="hidden items-center gap-2.5 rounded-pill border-2 border-ink bg-panel-inset px-3 py-1.5 md:flex"
+          className="hidden items-center gap-2.5 rounded-pill border-2 border-ink bg-panel-inset px-3 py-1.5 md:flex md:px-4"
         >
           <Volume2 className="h-4 w-4 shrink-0 text-ink" strokeWidth={2.5} />
           <input
@@ -139,7 +142,7 @@ export default function PlayerBar() {
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
             aria-label="Volume"
-            className="np-slider h-1.5 w-24 cursor-pointer appearance-none outline-none rounded-full"
+            className="np-slider h-1.5 w-24 cursor-pointer appearance-none outline-none rounded-full md:w-40"
             style={{
               background: `linear-gradient(to right, ${accent} ${volume * 100}%, #1B1A1722 ${volume * 100}%)`,
             }}

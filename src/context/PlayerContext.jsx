@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { PlayerContext } from "./PlayerContextDef";
+import {
+  isNativePlatform,
+  requestNotificationPermission,
+  setupNativeMediaListener,
+  stopNativeMedia,
+  updateNativeMetadata,
+  updateNativePlaybackState,
+} from "../utils/nativeMediaControls";
 
 // ---------------------------------------------------------------------------
 // Switches / helpers
@@ -507,6 +515,7 @@ export function PlayerProvider({ children }) {
     setStatus("idle");
     setPlaylist([]);
     setIndex(-1);
+    stopNativeMedia();
     try {
       localStorage.removeItem(LAST_STATION_KEY);
     } catch {
@@ -576,6 +585,7 @@ export function PlayerProvider({ children }) {
   }, [isPlaying, toggle, stop, prev, next]);
 
   useEffect(() => {
+    if (isNativePlatform()) return;
     if (!("mediaSession" in navigator)) return;
     const ms = navigator.mediaSession;
     const live = ["play", "pause", "stop"];
@@ -591,6 +601,7 @@ export function PlayerProvider({ children }) {
   }, [canSkip]);
 
   useEffect(() => {
+    if (isNativePlatform()) return;
     if (!("mediaSession" in navigator)) return;
     navigator.mediaSession.metadata = current
       ? new MediaMetadata({
@@ -602,6 +613,7 @@ export function PlayerProvider({ children }) {
   }, [current]);
 
   useEffect(() => {
+    if (isNativePlatform()) return;
     if (!("mediaSession" in navigator)) return;
     navigator.mediaSession.playbackState = !current
       ? "none"
@@ -609,6 +621,43 @@ export function PlayerProvider({ children }) {
       ? "playing"
       : "paused";
   }, [current, isPlaying]);
+
+  // Sync metadata with native mobile notification
+  useEffect(() => {
+    if (current) {
+      updateNativeMetadata({
+        title: current.name,
+        artist: current.genre || "Live radio",
+      });
+    } else {
+      stopNativeMedia();
+    }
+  }, [current]);
+
+  // Sync playback state with native mobile notification
+  useEffect(() => {
+    if (current) {
+      updateNativePlaybackState({ isPlaying });
+    }
+  }, [current, isPlaying]);
+
+  // Listen for actions from mobile lock screen & notification panel
+  useEffect(() => {
+    requestNotificationPermission();
+
+    const unbind = setupNativeMediaListener((action) => {
+      const handler = msRef.current[action];
+      if (handler) {
+        handler();
+      } else if (action === "next") {
+        msRef.current.nexttrack?.();
+      } else if (action === "previous") {
+        msRef.current.previoustrack?.();
+      }
+    });
+
+    return unbind;
+  }, []);
 
   return (
     <PlayerContext.Provider
