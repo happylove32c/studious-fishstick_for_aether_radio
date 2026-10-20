@@ -68,9 +68,7 @@ public class MediaControlsPlugin extends Plugin {
         isPlaying = false;
         Context context = getContext();
         if (context != null) {
-            Intent intent = new Intent(context, MediaPlaybackService.class);
-            intent.setAction(MediaPlaybackService.ACTION_STOP);
-            context.startService(intent);
+            context.stopService(new Intent(context, MediaPlaybackService.class));
         }
         call.resolve();
     }

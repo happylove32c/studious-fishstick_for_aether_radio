@@ -629,8 +629,6 @@ export function PlayerProvider({ children }) {
         title: current.name,
         artist: current.genre || "Live radio",
       });
-    } else {
-      stopNativeMedia();
     }
   }, [current]);
 
