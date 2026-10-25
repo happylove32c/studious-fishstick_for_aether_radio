@@ -6,6 +6,8 @@ import NowPlayingPage from "../pages/NowPlayingPage";
 import FavoritesPage from "../pages/FavoritesPage";
 import SearchPage from "../pages/SearchPage";
 import RecordingsPage from "../pages/RecordingsPage";
+import RecordingPlayerPage from "../pages/RecordingPlayerPage";
+import SettingsPage from "../pages/SettingsPage";
 
 function RouteSwitch({ location }) {
   return (
@@ -16,6 +18,8 @@ function RouteSwitch({ location }) {
       <Route path="/favorites" element={<FavoritesPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/recordings" element={<RecordingsPage />} />
+      <Route path="/recordings/:id" element={<RecordingPlayerPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 }
@@ -49,8 +53,12 @@ export default function AnimatedRoutes() {
 
   // During transition: both layers are fixed inset-0 overflow-y-auto overscroll-contain bg-cream
   const isPop = activeNavType === "POP";
-  const isNpIncoming = location.pathname === "/now-playing";
-  const isNpOutgoing = prevLocation.pathname === "/now-playing";
+  const isNpIncoming =
+    location.pathname === "/now-playing" ||
+    location.pathname.startsWith("/recordings/");
+  const isNpOutgoing =
+    prevLocation.pathname === "/now-playing" ||
+    prevLocation.pathname.startsWith("/recordings/");
 
   let incomingClass;
   let outgoingClass;

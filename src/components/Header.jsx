@@ -1,4 +1,4 @@
-import { Headphones, Shuffle } from "lucide-react";
+import { Headphones, Settings, Shuffle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
@@ -101,7 +101,18 @@ export default function Header() {
           </button>
         )}
 
-
+        {/* Settings Gear Button */}
+        <Link
+          to="/settings"
+          aria-label="Settings"
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-ink shadow-hard-sm transition-all duration-tactile ease-spring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-cream ${
+            pathname === "/settings"
+              ? "bg-ink text-cream -translate-y-0.5 shadow-hard"
+              : "bg-panel text-ink hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0"
+          }`}
+        >
+          <Settings className="h-5 w-5" strokeWidth={2.5} />
+        </Link>
       </div>
     </header>
   );

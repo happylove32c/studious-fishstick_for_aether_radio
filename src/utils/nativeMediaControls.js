@@ -59,6 +59,32 @@ export function updateNativeRecording({ recording, elapsed }) {
 }
 
 /**
+ * Syncs offline recording playback state with the native foreground service & notification.
+ */
+export function updateNativeOfflinePlayback({
+  title,
+  durationMs,
+  positionMs,
+  isPlaying,
+  offline = true,
+  speed = 1.0,
+}) {
+  if (!isNativePlatform()) return;
+  try {
+    MediaControls.updateOfflinePlayback({
+      title: title || "Recording",
+      durationMs: Math.round(durationMs || 0),
+      positionMs: Math.round(positionMs || 0),
+      isPlaying: Boolean(isPlaying),
+      offline: Boolean(offline),
+      speed: Number(speed) || 1.0,
+    }).catch(() => {});
+  } catch {
+    // Ignore
+  }
+}
+
+/**
  * Removes the notification and stops the background playback service.
  */
 export function stopNativeMedia() {
@@ -71,7 +97,7 @@ export function stopNativeMedia() {
 }
 
 /**
- * Subscribes to actions triggered from the notification panel or lock screen (play, pause, next, prev, stop).
+ * Subscribes to actions triggered from the notification panel or lock screen (play, pause, next, prev, stop, seek, rewind, forward).
  * Returns an unbind cleanup function.
  */
 export function setupNativeMediaListener(onAction) {
@@ -81,7 +107,7 @@ export function setupNativeMediaListener(onAction) {
 
   MediaControls.addListener("mediaAction", (data) => {
     if (data && data.action && onAction) {
-      onAction(data.action);
+      onAction(data.action, data);
     }
   })
     .then((handle) => {

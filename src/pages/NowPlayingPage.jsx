@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
+import { useNowPlayingTrack } from "../hooks/useNowPlayingTrack";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
@@ -306,7 +307,7 @@ export default function NowPlayingPage() {
     isFavorite,
     toggleFavorite,
     analyserRef,
-    format,
+    // format,
     recording,
     recordElapsed,
     startRecording,
@@ -321,10 +322,19 @@ export default function NowPlayingPage() {
     enabled: !queueOpen,
   });
   const { mounted: queueMounted, closing: queueClosing } = useModalPresence(queueOpen);
-  const { sheetRef: queueSheetRef, hasEntered: queueHasEntered, onAnimationEnd: handleQueueAnimEnd } =
-    useSheetDrag(() => setQueueOpen(false));
+  const {
+    sheetRef: queueSheetRef,
+    handleRef: queueHandleRef,
+    hasEntered: queueHasEntered,
+    onAnimationEnd: handleQueueAnimEnd,
+  } = useSheetDrag(() => setQueueOpen(false));
   useLockBodyScroll(queueMounted);
   const { route, isNative } = useAudioRoute();
+  const track = useNowPlayingTrack(
+    current,
+    isPlaying && status === "connected",
+    { syncMetadata: true }
+  );
   const currentRoute = ROUTE_CONFIG[route] || ROUTE_CONFIG.speaker;
   const RouteIcon = currentRoute.icon;
 
@@ -426,9 +436,8 @@ export default function NowPlayingPage() {
         "--g": accent,
         "--gb": `${accent}99`,
         "--gt": ink,
-        touchAction: "pan-y",
       }}
-      className="min-h-screen bg-cream font-jetbrains text-ink pb-12 touch-pan-y"
+      className="min-h-screen bg-cream font-jetbrains text-ink pb-12"
     >
       {/* 1. Studio Deck Top Bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b-3 border-ink bg-cream/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6 md:px-10">
@@ -518,8 +527,12 @@ export default function NowPlayingPage() {
                     {current.name}
                   </h1>
 
-                  <p className="mt-1 font-mono text-xs font-medium text-ink-muted">
-                    Broadcast format: {format} • Receiver locked
+                  <p className="mt-1 min-h-[1rem] truncate font-mono text-xs font-bold text-ink">
+                    {track.title
+                      ? track.artist
+                        ? `${track.artist} - ${track.title}`
+                        : track.title
+                      : ""}
                   </p>
                 </div>
               </div>
@@ -761,42 +774,44 @@ export default function NowPlayingPage() {
             <div
               ref={queueSheetRef}
               onAnimationEnd={handleQueueAnimEnd}
-              style={{ touchAction: "pan-y" }}
               className={`relative w-full max-w-lg max-h-[75vh] flex flex-col overflow-hidden rounded-t-panel border-t-3 border-x-3 border-ink bg-cream shadow-hard-lg pb-[max(1rem,env(safe-area-inset-bottom))] ${
                 queueClosing ? "animate-sheet-out" : queueHasEntered ? "" : "animate-sheet-in"
               }`}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Drag notch */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="h-1.5 w-12 rounded-full border border-ink bg-ink/30" />
-              </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between border-b-2 border-panel-inset px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <ListMusic className="h-5 w-5 text-ink" strokeWidth={2.5} />
-                  <h3 className="font-fredoka text-lg font-bold uppercase tracking-wider text-ink">
-                    Up Next
-                  </h3>
-                  <span className="font-mono text-xs font-bold text-ink-muted">
-                    ({queue.length})
-                  </span>
+              {/* Handle element (drag notch plus header row) */}
+              <div ref={queueHandleRef} style={{ touchAction: "none" }} className="select-none">
+                {/* Drag notch */}
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="h-1.5 w-12 rounded-full border border-ink bg-ink/30 cursor-grab" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setQueueOpen(false)}
-                  aria-label="Close queue"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:scale-105 active:scale-95"
-                >
-                  <X className="h-4 w-4" strokeWidth={2.5} />
-                </button>
+
+                {/* Header */}
+                <div className="flex items-center justify-between border-b-2 border-panel-inset px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <ListMusic className="h-5 w-5 text-ink" strokeWidth={2.5} />
+                    <h3 className="font-fredoka text-lg font-bold uppercase tracking-wider text-ink">
+                      Up Next
+                    </h3>
+                    <span className="font-mono text-xs font-bold text-ink-muted">
+                      ({queue.length})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQueueOpen(false)}
+                    aria-label="Close queue"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:scale-105 active:scale-95"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2.5} />
+                  </button>
+                </div>
               </div>
 
               {/* Scrollable list */}
               <div
                 className="flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y px-5 py-3 pr-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                style={{ touchAction: "pan-y" }}
+                style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
               >
                 {queue.map((s, idx) => {
                   const isCurrentThis =

@@ -1,20 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   CassetteTape,
   Check,
   Download,
   Edit2,
   HardDrive,
-  Pause,
   Play,
   Radio,
   Trash2,
   X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import BackLink from "../components/BackLink";
 import { usePlayer } from "../context/usePlayer";
+import { useRecordingPlayer } from "../context/useRecordingPlayer";
 import {
   listRecordings,
   getRecordingBlob,
@@ -44,17 +44,16 @@ function formatDuration(sec) {
 }
 
 export default function RecordingsPage() {
-  const { current, isPlaying, toggle } = usePlayer();
+  const { current } = usePlayer();
+  const { currentRec, play: playRecording, stop: stopRecording } = useRecordingPlayer();
+  const navigate = useNavigate();
+
   const [recordings, setRecordings] = useState(listRecordings);
   const [storageInfo, setStorageInfo] = useState({ freeBytes: null });
-  const [playingId, setPlayingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
-
-  const localAudioRef = useRef(null);
-  const activeBlobUrlRef = useRef(null);
 
   // Subscribe to live updates in store
   useEffect(() => {
@@ -70,95 +69,25 @@ export default function RecordingsPage() {
     });
   }, [recordings]);
 
-  // Cleanup local audio playback on unmount
-  useEffect(() => {
-    const audio = new Audio();
-    localAudioRef.current = audio;
-
-    audio.onended = () => {
-      setPlayingId(null);
-    };
-
-    audio.onerror = () => {
-      setPlayingId(null);
-    };
-
-    return () => {
-      audio.pause();
-      if (activeBlobUrlRef.current) {
-        URL.revokeObjectURL(activeBlobUrlRef.current);
-        activeBlobUrlRef.current = null;
-      }
-    };
-  }, []);
-
   const totalBytes = recordings.reduce(
     (sum, r) => sum + (Number(r.sizeBytes) || 0),
     0
   );
 
-  const stopLocalPlayback = useCallback(() => {
-    const audio = localAudioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.src = "";
-    }
-    if (activeBlobUrlRef.current) {
-      URL.revokeObjectURL(activeBlobUrlRef.current);
-      activeBlobUrlRef.current = null;
-    }
-    setPlayingId(null);
-  }, []);
+  // Tapping a row opens /recordings/:id and starts playback
+  const handleOpenRecording = (id) => {
+    playRecording(id);
+    navigate(`/recordings/${id}`);
+  };
 
-  const handleTogglePlayback = useCallback(
-    async (rec) => {
-      const audio = localAudioRef.current;
-      if (!audio) return;
-
-      if (playingId === rec.id) {
-        if (!audio.paused) {
-          audio.pause();
-          setPlayingId(null);
-        } else {
-          audio.play().catch(() => setPlayingId(null));
-          setPlayingId(rec.id);
-        }
-        return;
-      }
-
-      // Starting recording playback pauses live station playback
-      if (isPlaying) {
-        toggle();
-      }
-
-      stopLocalPlayback();
-
-      try {
-        const blob = await getRecordingBlob(rec.id);
-        if (!blob) {
-          alert("Recording audio file not found.");
-          return;
-        }
-
-        const blobUrl = URL.createObjectURL(blob);
-        activeBlobUrlRef.current = blobUrl;
-        audio.src = blobUrl;
-        setPlayingId(rec.id);
-        await audio.play();
-      } catch (err) {
-        console.error("Playback failed:", err);
-        setPlayingId(null);
-      }
-    },
-    [isPlaying, playingId, stopLocalPlayback, toggle]
-  );
-
-  const handleStartRename = (rec) => {
+  const handleStartRename = (e, rec) => {
+    e.stopPropagation();
     setEditingId(rec.id);
     setEditingName(rec.name || "");
   };
 
-  const handleSaveRename = (id) => {
+  const handleSaveRename = (e, id) => {
+    e.stopPropagation();
     const trimmed = editingName.trim();
     if (trimmed) {
       renameRecording(id, trimmed);
@@ -167,12 +96,14 @@ export default function RecordingsPage() {
     setEditingName("");
   };
 
-  const handleCancelRename = () => {
+  const handleCancelRename = (e) => {
+    e.stopPropagation();
     setEditingId(null);
     setEditingName("");
   };
 
-  const handleDownload = async (rec) => {
+  const handleDownload = async (e, rec) => {
+    e.stopPropagation();
     try {
       setDownloadingId(rec.id);
       const blob = await getRecordingBlob(rec.id);
@@ -204,9 +135,10 @@ export default function RecordingsPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (playingId === id) {
-      stopLocalPlayback();
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    if (currentRec?.id === id) {
+      stopRecording();
     }
     await deleteRecording(id);
     setConfirmDeleteId(null);
@@ -277,58 +209,61 @@ export default function RecordingsPage() {
         {recordings.length > 0 && (
           <div className="mt-8 space-y-3 sm:mt-12 sm:space-y-4">
             {recordings.map((rec) => {
-              const isItemPlaying = playingId === rec.id;
               const isItemEditing = editingId === rec.id;
               const isConfirming = confirmDeleteId === rec.id;
+              const isCurrentlyPlaying = currentRec?.id === rec.id;
 
               return (
                 <div
                   key={rec.id}
-                  className="group relative flex flex-col justify-between gap-4 rounded-panel border-3 border-ink bg-panel p-4 shadow-hard transition-transform duration-tactile hover:-translate-y-0.5 hover:shadow-hard-lg sm:flex-row sm:items-center sm:p-5"
+                  onClick={() => handleOpenRecording(rec.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenRecording(rec.id);
+                    }
+                  }}
+                  className={`group relative flex flex-col justify-between gap-4 rounded-panel border-3 border-ink bg-panel p-4 shadow-hard transition-transform duration-tactile cursor-pointer hover:-translate-y-0.5 hover:shadow-hard-lg sm:flex-row sm:items-center sm:p-5 ${
+                    isCurrentlyPlaying ? "ring-2 ring-ink bg-panel" : ""
+                  }`}
                 >
-                  {/* Left: Play trigger + Info */}
+                  {/* Left: Play button / icon + Info */}
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    {/* Play/Pause Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleTogglePlayback(rec)}
-                      aria-label={
-                        isItemPlaying ? "Pause recording" : "Play recording"
-                      }
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile active:scale-95 ${
-                        isItemPlaying
+                    {/* Play trigger button */}
+                    <div
+                      aria-label="Play recording in cassette deck"
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile group-hover:scale-105 ${
+                        isCurrentlyPlaying
                           ? "bg-ink text-cream"
-                          : "bg-[#FFD166] text-ink hover:-translate-y-0.5"
+                          : "bg-[#FFD166] text-ink"
                       }`}
                     >
-                      {isItemPlaying ? (
-                        <Pause className="h-5 w-5 fill-current" strokeWidth={2.5} />
-                      ) : (
-                        <Play
-                          className="h-5 w-5 ml-0.5 fill-current"
-                          strokeWidth={2.5}
-                        />
-                      )}
-                    </button>
+                      <Play className="h-5 w-5 ml-0.5 fill-current" strokeWidth={2.5} />
+                    </div>
 
                     {/* Metadata & Title */}
                     <div className="min-w-0 flex-1">
                       {isItemEditing ? (
-                        <div className="flex items-center gap-2">
+                        <div
+                          className="flex items-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <input
                             type="text"
                             value={editingName}
                             onChange={(e) => setEditingName(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveRename(rec.id);
-                              if (e.key === "Escape") handleCancelRename();
+                              if (e.key === "Enter") handleSaveRename(e, rec.id);
+                              if (e.key === "Escape") handleCancelRename(e);
                             }}
                             autoFocus
                             className="w-full rounded-pill border-2 border-ink bg-cream px-3 py-1 font-fredoka text-base font-bold text-ink outline-none focus:ring-2 focus:ring-ink"
                           />
                           <button
                             type="button"
-                            onClick={() => handleSaveRename(rec.id)}
+                            onClick={(e) => handleSaveRename(e, rec.id)}
                             aria-label="Save name"
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-[#4ECDC4] text-ink shadow-hard-xs active:scale-95"
                           >
@@ -336,7 +271,7 @@ export default function RecordingsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={handleCancelRename}
+                            onClick={(e) => handleCancelRename(e)}
                             aria-label="Cancel editing"
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-cream text-ink shadow-hard-xs active:scale-95"
                           >
@@ -345,12 +280,12 @@ export default function RecordingsPage() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 min-w-0">
-                          <h3 className="truncate font-fredoka text-base font-bold text-ink sm:text-lg">
+                          <h3 className="truncate font-fredoka text-base font-bold text-ink sm:text-lg group-hover:text-ink">
                             {rec.name || "Untitled Broadcast"}
                           </h3>
                           <button
                             type="button"
-                            onClick={() => handleStartRename(rec)}
+                            onClick={(e) => handleStartRename(e, rec)}
                             aria-label="Rename recording"
                             className="opacity-60 transition-opacity hover:opacity-100 p-1"
                           >
@@ -382,11 +317,14 @@ export default function RecordingsPage() {
                   </div>
 
                   {/* Right Actions: Download & Delete */}
-                  <div className="flex items-center gap-2 self-end sm:self-center">
+                  <div
+                    className="flex items-center gap-2 self-end sm:self-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {/* Download button */}
                     <button
                       type="button"
-                      onClick={() => handleDownload(rec)}
+                      onClick={(e) => handleDownload(e, rec)}
                       disabled={downloadingId === rec.id}
                       title="Download audio file"
                       aria-label="Download audio file"
@@ -403,14 +341,17 @@ export default function RecordingsPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleDelete(rec.id)}
+                          onClick={(e) => handleDelete(e, rec.id)}
                           className="rounded-full border border-ink bg-cream px-2 py-0.5 text-[10px] uppercase shadow-hard-xs active:scale-95"
                         >
                           Yes
                         </button>
                         <button
                           type="button"
-                          onClick={() => setConfirmDeleteId(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(null);
+                          }}
                           className="rounded-full border border-ink bg-panel px-2 py-0.5 text-[10px] uppercase shadow-hard-xs active:scale-95"
                         >
                           No
@@ -419,7 +360,10 @@ export default function RecordingsPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setConfirmDeleteId(rec.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteId(rec.id);
+                        }}
                         title="Delete recording"
                         aria-label="Delete recording"
                         className="flex h-9 w-9 items-center justify-center rounded-pill border-2 border-ink bg-cream text-ink shadow-hard-sm transition-transform duration-tactile hover:-translate-y-0.5 hover:bg-[#FF6B6B] hover:shadow-hard active:translate-y-0"

@@ -23,6 +23,7 @@ body {
 @layer base {
   html,
   body {
+    overscroll-behavior-y: contain;
     background-color: #FAF6EE;
     color: #1B1A17;
     font-family: 'JetBrains Mono', monospace;

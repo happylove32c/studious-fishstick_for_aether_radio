@@ -2,10 +2,14 @@ import { useRef, useState, useEffect, useCallback } from "react";
 
 /**
  * Hook to handle swipe-down gesture to dismiss bottom sheet modals.
+ * Attaches drag listeners specifically to a handle element (the notch + header row),
+ * with touch-action: none so mobile browsers do not cancel the drag gesture.
+ *
  * @param {() => void} onClose Callback to invoke when dismissed
  */
 export function useSheetDrag(onClose) {
   const sheetRef = useRef(null);
+  const handleRef = useRef(null);
   const [hasEntered, setHasEntered] = useState(false);
 
   const isDraggingRef = useRef(false);
@@ -15,6 +19,7 @@ export function useSheetDrag(onClose) {
   const lastTimeRef = useRef(0);
   const velocityRef = useRef(0);
   const currentDyRef = useRef(0);
+  const pointerIdRef = useRef(null);
 
   // Remove animate-sheet-in on animationend so forwards doesn't block inline transform
   const onAnimationEnd = useCallback((e) => {
@@ -32,23 +37,15 @@ export function useSheetDrag(onClose) {
   }, []);
 
   useEffect(() => {
+    const handle = handleRef.current;
     const sheet = sheetRef.current;
-    if (!sheet) return;
+    if (!handle || !sheet) return;
+
+    // Set touch-action: none on the handle so vertical touch isn't captured by the browser
+    handle.style.touchAction = "none";
 
     const handlePointerDown = (e) => {
       if (e.button !== undefined && e.button !== 0) return;
-
-      // Ignore drags that start inside the scroll body while its scrollTop > 0
-      let el = e.target;
-      let hasScrolledParent = false;
-      while (el && el !== sheet) {
-        if (el.scrollTop > 0) {
-          hasScrolledParent = true;
-          break;
-        }
-        el = el.parentElement;
-      }
-      if (hasScrolledParent) return;
 
       isTrackingRef.current = true;
       isDraggingRef.current = false;
@@ -57,47 +54,38 @@ export function useSheetDrag(onClose) {
       lastTimeRef.current = performance.now();
       velocityRef.current = 0;
       currentDyRef.current = 0;
+      pointerIdRef.current = e.pointerId;
     };
 
     const handlePointerMove = (e) => {
       if (!isTrackingRef.current) return;
+      if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
 
       const rawDy = e.clientY - startYRef.current;
 
       if (!isDraggingRef.current) {
         // Start dragging only when moving downwards
         if (rawDy > 6) {
-          let el = e.target;
-          let hasScrolledParent = false;
-          while (el && el !== sheet) {
-            if (el.scrollTop > 0) {
-              hasScrolledParent = true;
-              break;
-            }
-            el = el.parentElement;
-          }
-          if (hasScrolledParent) {
-            isTrackingRef.current = false;
-            return;
-          }
-
           isDraggingRef.current = true;
           setHasEntered(true);
           sheet.classList.remove("animate-sheet-in");
           sheet.style.transition = "none";
           try {
-            sheet.setPointerCapture(e.pointerId);
+            handle.setPointerCapture(e.pointerId);
           } catch {
-            // Ignore if pointer capture is unsupported or fails
+            // Ignore if pointer capture fails
           }
         } else if (rawDy < -10) {
-          // Upward swipe/scroll, cancel tracking
+          // Upward swipe, cancel tracking
           isTrackingRef.current = false;
           return;
         }
       }
 
       if (isDraggingRef.current) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         const dy = Math.max(0, rawDy);
         currentDyRef.current = dy;
         sheet.style.transform = `translateY(${dy}px)`;
@@ -147,13 +135,13 @@ export function useSheetDrag(onClose) {
       }
     };
 
-    sheet.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("pointermove", handlePointerMove);
+    handle.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", handlePointerUp);
 
     return () => {
-      sheet.removeEventListener("pointerdown", handlePointerDown);
+      handle.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
@@ -162,6 +150,7 @@ export function useSheetDrag(onClose) {
 
   return {
     sheetRef,
+    handleRef,
     hasEntered,
     onAnimationEnd,
   };

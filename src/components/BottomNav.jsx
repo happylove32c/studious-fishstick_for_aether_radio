@@ -7,7 +7,7 @@ export default function BottomNav() {
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  if (pathname === "/now-playing") return null;
+  if (pathname === "/now-playing" || pathname.startsWith("/recordings/")) return null;
 
   const isHomeActive = pathname === "/" || pathname.startsWith("/genre");
   const isSearchActive = pathname === "/search";

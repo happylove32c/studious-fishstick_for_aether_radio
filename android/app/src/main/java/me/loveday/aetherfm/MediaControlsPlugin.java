@@ -96,6 +96,40 @@ public class MediaControlsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void updateOfflinePlayback(PluginCall call) {
+        String title = call.getString("title", "Recording");
+        long durationMs = call.getData().optLong("durationMs", 0L);
+        long positionMs = call.getData().optLong("positionMs", 0L);
+        boolean playing = call.getBoolean("isPlaying", false);
+        boolean offline = call.getBoolean("offline", true);
+        double speed = call.getData().optDouble("speed", 1.0);
+
+        Context context = getContext();
+        if (context != null) {
+            Intent intent = new Intent(context, MediaPlaybackService.class);
+            intent.setAction(MediaPlaybackService.ACTION_UPDATE_OFFLINE);
+            intent.putExtra(MediaPlaybackService.EXTRA_TITLE, title);
+            intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, "Archived Broadcast");
+            intent.putExtra(MediaPlaybackService.EXTRA_DURATION, durationMs);
+            intent.putExtra(MediaPlaybackService.EXTRA_POSITION, positionMs);
+            intent.putExtra(MediaPlaybackService.EXTRA_IS_PLAYING, playing);
+            intent.putExtra(MediaPlaybackService.EXTRA_OFFLINE, offline);
+            intent.putExtra(MediaPlaybackService.EXTRA_SPEED, (float) speed);
+
+            try {
+                if (playing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    ContextCompat.startForegroundService(context, intent);
+                } else {
+                    context.startService(intent);
+                }
+            } catch (Exception e) {
+                // Guard against rare Android background start restrictions
+            }
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
     public void stop(PluginCall call) {
         isPlaying = false;
         Context context = getContext();
@@ -114,6 +148,7 @@ public class MediaControlsPlugin extends Plugin {
         intent.putExtra(MediaPlaybackService.EXTRA_TITLE, stationTitle);
         intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, stationArtist);
         intent.putExtra(MediaPlaybackService.EXTRA_IS_PLAYING, isPlaying);
+        intent.putExtra(MediaPlaybackService.EXTRA_OFFLINE, false);
 
         try {
             if (isPlaying && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -126,9 +161,12 @@ public class MediaControlsPlugin extends Plugin {
         }
     }
 
-    private void sendAction(String action) {
+    private void sendAction(String action, Long position) {
         JSObject data = new JSObject();
         data.put("action", action);
+        if (position != null) {
+            data.put("position", position);
+        }
         notifyListeners("mediaAction", data);
     }
 }

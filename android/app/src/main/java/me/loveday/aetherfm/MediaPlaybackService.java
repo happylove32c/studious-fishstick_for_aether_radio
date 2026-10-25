@@ -32,18 +32,26 @@ public class MediaPlaybackService extends Service {
     public static final String ACTION_STOP = "me.loveday.aetherfm.ACTION_STOP";
     public static final String ACTION_UPDATE = "me.loveday.aetherfm.ACTION_UPDATE";
     public static final String ACTION_STOP_REC = "me.loveday.aetherfm.ACTION_STOP_REC";
+    public static final String ACTION_UPDATE_OFFLINE = "me.loveday.aetherfm.ACTION_UPDATE_OFFLINE";
+    public static final String ACTION_SEEK_TO = "me.loveday.aetherfm.ACTION_SEEK_TO";
+    public static final String ACTION_REWIND = "me.loveday.aetherfm.ACTION_REWIND";
+    public static final String ACTION_FAST_FORWARD = "me.loveday.aetherfm.ACTION_FAST_FORWARD";
 
     public static final String EXTRA_TITLE = "extra_title";
     public static final String EXTRA_ARTIST = "extra_artist";
     public static final String EXTRA_IS_PLAYING = "extra_is_playing";
     public static final String EXTRA_RECORDING = "extra_recording";
     public static final String EXTRA_ELAPSED = "extra_elapsed";
+    public static final String EXTRA_OFFLINE = "extra_offline";
+    public static final String EXTRA_DURATION = "extra_duration";
+    public static final String EXTRA_POSITION = "extra_position";
+    public static final String EXTRA_SPEED = "extra_speed";
 
     private static final String CHANNEL_ID = "aether_fm_media";
     private static final int NOTIFICATION_ID = 1001;
 
     public interface ActionCallback {
-        void onAction(String action);
+        void onAction(String action, Long position);
     }
 
     private static ActionCallback actionCallback;
@@ -64,6 +72,11 @@ public class MediaPlaybackService extends Service {
     private int recordElapsed = 0;
     private long lastNotificationUpdateTime = 0;
     private boolean lastIsRecording = false;
+
+    private boolean isOffline = false;
+    private long durationMs = -1L;
+    private long positionMs = 0L;
+    private float playbackSpeed = 1.0f;
 
     @Override
     public void onCreate() {
@@ -90,28 +103,45 @@ public class MediaPlaybackService extends Service {
         mediaSession.setCallback(new MediaSessionCompat.Callback() {
             @Override
             public void onPlay() {
-                dispatchAction("play");
+                dispatchAction("play", null);
             }
 
             @Override
             public void onPause() {
-                dispatchAction("pause");
+                dispatchAction("pause", null);
             }
 
             @Override
             public void onSkipToNext() {
-                dispatchAction("next");
+                dispatchAction("next", null);
             }
 
             @Override
             public void onSkipToPrevious() {
-                dispatchAction("previous");
+                dispatchAction("previous", null);
             }
 
             @Override
             public void onStop() {
-                dispatchAction("stop");
+                dispatchAction("stop", null);
                 stopServiceAndNotification();
+            }
+
+            @Override
+            public void onSeekTo(long pos) {
+                positionMs = pos;
+                dispatchAction("seek", pos);
+                updateMediaSession();
+            }
+
+            @Override
+            public void onRewind() {
+                dispatchAction("rewind", null);
+            }
+
+            @Override
+            public void onFastForward() {
+                dispatchAction("forward", null);
             }
         });
 
@@ -156,21 +186,54 @@ public class MediaPlaybackService extends Service {
         }
 
         if (ACTION_PLAY.equals(action)) {
-            dispatchAction("play");
+            dispatchAction("play", null);
         } else if (ACTION_PAUSE.equals(action)) {
-            dispatchAction("pause");
+            dispatchAction("pause", null);
         } else if (ACTION_NEXT.equals(action)) {
-            dispatchAction("next");
+            dispatchAction("next", null);
         } else if (ACTION_PREVIOUS.equals(action)) {
-            dispatchAction("previous");
+            dispatchAction("previous", null);
+        } else if (ACTION_REWIND.equals(action)) {
+            dispatchAction("rewind", null);
+        } else if (ACTION_FAST_FORWARD.equals(action)) {
+            dispatchAction("forward", null);
+        } else if (ACTION_SEEK_TO.equals(action)) {
+            long pos = intent.getLongExtra(EXTRA_POSITION, 0L);
+            positionMs = pos;
+            dispatchAction("seek", pos);
         } else if (ACTION_STOP.equals(action)) {
-            dispatchAction("stop");
+            dispatchAction("stop", null);
             stopServiceAndNotification();
             return START_NOT_STICKY;
         } else if (ACTION_STOP_REC.equals(action)) {
-            dispatchAction("stoprec");
+            dispatchAction("stoprec", null);
             return START_STICKY;
+        } else if (ACTION_UPDATE_OFFLINE.equals(action)) {
+            isOffline = intent.getBooleanExtra(EXTRA_OFFLINE, true);
+            durationMs = intent.getLongExtra(EXTRA_DURATION, 0L);
+            positionMs = intent.getLongExtra(EXTRA_POSITION, 0L);
+            playbackSpeed = intent.getFloatExtra(EXTRA_SPEED, 1.0f);
+            isPlaying = intent.getBooleanExtra(EXTRA_IS_PLAYING, false);
+            if (intent.hasExtra(EXTRA_TITLE)) {
+                String t = intent.getStringExtra(EXTRA_TITLE);
+                if (t != null && !t.trim().isEmpty()) {
+                    currentTitle = t;
+                }
+            }
+            if (intent.hasExtra(EXTRA_ARTIST)) {
+                String a = intent.getStringExtra(EXTRA_ARTIST);
+                if (a != null && !a.trim().isEmpty()) {
+                    currentArtist = a;
+                }
+            }
+            isRecording = false;
         } else if (ACTION_UPDATE.equals(action)) {
+            isOffline = intent.getBooleanExtra(EXTRA_OFFLINE, false);
+            if (!isOffline) {
+                durationMs = -1L;
+                positionMs = 0L;
+                playbackSpeed = 1.0f;
+            }
             if (intent.hasExtra(EXTRA_TITLE)) {
                 String t = intent.getStringExtra(EXTRA_TITLE);
                 if (t != null && !t.trim().isEmpty()) {
@@ -197,7 +260,7 @@ public class MediaPlaybackService extends Service {
         long now = System.currentTimeMillis();
         boolean recStateChanged = (isRecording != lastIsRecording);
         lastIsRecording = isRecording;
-        boolean metaOrPlayChanged = intent.hasExtra(EXTRA_TITLE) || intent.hasExtra(EXTRA_ARTIST) || intent.hasExtra(EXTRA_IS_PLAYING);
+        boolean metaOrPlayChanged = intent.hasExtra(EXTRA_TITLE) || intent.hasExtra(EXTRA_ARTIST) || intent.hasExtra(EXTRA_IS_PLAYING) || intent.hasExtra(EXTRA_POSITION);
 
         // Service updates the notification at most once per 5s when recording ticks
         if (isRecording && !recStateChanged && !metaOrPlayChanged && (now - lastNotificationUpdateTime < 5000)) {
@@ -226,35 +289,52 @@ public class MediaPlaybackService extends Service {
         return START_STICKY;
     }
 
-    private void dispatchAction(String action) {
+    private void dispatchAction(String action, Long position) {
         if (actionCallback != null) {
-            actionCallback.onAction(action);
+            actionCallback.onAction(action, position);
         }
     }
 
     private void updateMediaSession() {
         if (mediaSession == null) return;
 
-        MediaMetadataCompat metadata = new MediaMetadataCompat.Builder()
+        MediaMetadataCompat.Builder metaBuilder = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "Aether FM")
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1L)
-                .build();
-        mediaSession.setMetadata(metadata);
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "Aether FM");
 
-        long actions = PlaybackStateCompat.ACTION_PLAY
-                | PlaybackStateCompat.ACTION_PAUSE
-                | PlaybackStateCompat.ACTION_PLAY_PAUSE
-                | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
-                | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-                | PlaybackStateCompat.ACTION_STOP;
+        if (isOffline) {
+            metaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMs);
+        } else {
+            metaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1L);
+        }
+        mediaSession.setMetadata(metaBuilder.build());
+
+        long actions;
+        if (isOffline) {
+            actions = PlaybackStateCompat.ACTION_PLAY
+                    | PlaybackStateCompat.ACTION_PAUSE
+                    | PlaybackStateCompat.ACTION_PLAY_PAUSE
+                    | PlaybackStateCompat.ACTION_STOP
+                    | PlaybackStateCompat.ACTION_SEEK_TO
+                    | PlaybackStateCompat.ACTION_REWIND
+                    | PlaybackStateCompat.ACTION_FAST_FORWARD;
+        } else {
+            actions = PlaybackStateCompat.ACTION_PLAY
+                    | PlaybackStateCompat.ACTION_PAUSE
+                    | PlaybackStateCompat.ACTION_PLAY_PAUSE
+                    | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                    | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                    | PlaybackStateCompat.ACTION_STOP;
+        }
 
         int state = isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+        long pos = isOffline ? positionMs : PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN;
+        float speed = isPlaying ? (isOffline ? playbackSpeed : 1.0f) : 0f;
 
         PlaybackStateCompat playbackState = new PlaybackStateCompat.Builder()
                 .setActions(actions)
-                .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, isPlaying ? 1.0f : 0f)
+                .setState(state, pos, speed)
                 .build();
 
         mediaSession.setPlaybackState(playbackState);
@@ -266,21 +346,12 @@ public class MediaPlaybackService extends Service {
             pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
         }
 
-        Intent prevIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_PREVIOUS);
-        PendingIntent prevPending = PendingIntent.getService(this, 1, prevIntent, pendingFlags);
-
         Intent playPauseIntent = new Intent(this, MediaPlaybackService.class)
                 .setAction(isPlaying ? ACTION_PAUSE : ACTION_PLAY);
         PendingIntent playPausePending = PendingIntent.getService(this, 2, playPauseIntent, pendingFlags);
 
-        Intent nextIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_NEXT);
-        PendingIntent nextPending = PendingIntent.getService(this, 3, nextIntent, pendingFlags);
-
         Intent stopIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_STOP);
         PendingIntent stopPending = PendingIntent.getService(this, 4, stopIntent, pendingFlags);
-
-        Intent stopRecIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_STOP_REC);
-        PendingIntent stopRecPending = PendingIntent.getService(this, 5, stopRecIntent, pendingFlags);
 
         Intent launchIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
         PendingIntent contentIntent = null;
@@ -294,15 +365,9 @@ public class MediaPlaybackService extends Service {
             iconId = getApplicationInfo().icon;
         }
 
-        int minutes = recordElapsed / 60;
-        int seconds = recordElapsed % 60;
-        String recTime = String.format("%02d:%02d", minutes, seconds);
-        String contentText = isRecording ? ("● REC " + recTime) : currentArtist;
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(iconId)
                 .setContentTitle(currentTitle)
-                .setContentText(contentText)
                 .setContentIntent(contentIntent)
                 .setDeleteIntent(stopPending)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -310,26 +375,67 @@ public class MediaPlaybackService extends Service {
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(isPlaying || isRecording)
                 .setOnlyAlertOnce(true)
-                .setShowWhen(false)
-                .addAction(android.R.drawable.ic_media_previous, "Previous", prevPending)
-                .addAction(
-                        isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
-                        isPlaying ? "Pause" : "Play",
-                        playPausePending
-                )
-                .addAction(android.R.drawable.ic_media_next, "Next", nextPending);
+                .setShowWhen(false);
 
-        if (isRecording) {
-            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Rec", stopRecPending);
+        if (isOffline) {
+            Intent rewindIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_REWIND);
+            PendingIntent rewindPending = PendingIntent.getService(this, 6, rewindIntent, pendingFlags);
+
+            Intent ffIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_FAST_FORWARD);
+            PendingIntent ffPending = PendingIntent.getService(this, 7, ffIntent, pendingFlags);
+
+            builder.setContentText(currentArtist)
+                    .addAction(android.R.drawable.ic_media_rew, "Rewind", rewindPending)
+                    .addAction(
+                            isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+                            isPlaying ? "Pause" : "Play",
+                            playPausePending
+                    )
+                    .addAction(android.R.drawable.ic_media_ff, "Forward", ffPending);
+
+            builder.setStyle(
+                    new MediaStyle()
+                            .setMediaSession(mediaSession != null ? mediaSession.getSessionToken() : null)
+                            .setShowActionsInCompactView(0, 1, 2)
+                            .setShowCancelButton(true)
+                            .setCancelButtonIntent(stopPending)
+            );
+        } else {
+            Intent prevIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_PREVIOUS);
+            PendingIntent prevPending = PendingIntent.getService(this, 1, prevIntent, pendingFlags);
+
+            Intent nextIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_NEXT);
+            PendingIntent nextPending = PendingIntent.getService(this, 3, nextIntent, pendingFlags);
+
+            Intent stopRecIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_STOP_REC);
+            PendingIntent stopRecPending = PendingIntent.getService(this, 5, stopRecIntent, pendingFlags);
+
+            int minutes = recordElapsed / 60;
+            int seconds = recordElapsed % 60;
+            String recTime = String.format("%02d:%02d", minutes, seconds);
+            String contentText = isRecording ? ("● REC " + recTime) : currentArtist;
+
+            builder.setContentText(contentText)
+                    .addAction(android.R.drawable.ic_media_previous, "Previous", prevPending)
+                    .addAction(
+                            isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+                            isPlaying ? "Pause" : "Play",
+                            playPausePending
+                    )
+                    .addAction(android.R.drawable.ic_media_next, "Next", nextPending);
+
+            if (isRecording) {
+                builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Rec", stopRecPending);
+            }
+
+            builder.setStyle(
+                    new MediaStyle()
+                            .setMediaSession(mediaSession != null ? mediaSession.getSessionToken() : null)
+                            .setShowActionsInCompactView(0, 1, 2)
+                            .setShowCancelButton(true)
+                            .setCancelButtonIntent(stopPending)
+            );
         }
-
-        builder.setStyle(
-                new MediaStyle()
-                        .setMediaSession(mediaSession != null ? mediaSession.getSessionToken() : null)
-                        .setShowActionsInCompactView(0, 1, 2)
-                        .setShowCancelButton(true)
-                        .setCancelButtonIntent(stopPending)
-        );
 
         return builder.build();
     }

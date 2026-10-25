@@ -392,6 +392,9 @@ export function PlayerProvider({ children }) {
 
       stoppingRef.current = false;
       stationRef.current = station;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("aether:live-play"));
+      }
       destroyHls();
       hlsMediaRecoveredRef.current = false;
       hlsNetworkRecoveredRef.current = false;

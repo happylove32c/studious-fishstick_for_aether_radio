@@ -8,6 +8,7 @@ import PlayerBar from "./components/PlayerBar";
 import BottomNav from "./components/BottomNav";
 import { StationsProvider } from "./context/StationsContext";
 import { PlayerProvider } from "./context/PlayerContext";
+import { RecordingPlayerProvider } from "./context/RecordingPlayerContext";
 import { usePlayerShortcuts } from "./hooks/usePlayerShortcuts";
 
 function KeyboardShortcuts() {
@@ -47,11 +48,13 @@ function App() {
     <BrowserRouter>
       <StationsProvider>
         <PlayerProvider>
-          <KeyboardShortcuts />
-          <BackButtonHandler />
-          <AnimatedRoutes />
-          <PlayerBar />
-          <BottomNav />
+          <RecordingPlayerProvider>
+            <KeyboardShortcuts />
+            <BackButtonHandler />
+            <AnimatedRoutes />
+            <PlayerBar />
+            <BottomNav />
+          </RecordingPlayerProvider>
         </PlayerProvider>
       </StationsProvider>
     </BrowserRouter>

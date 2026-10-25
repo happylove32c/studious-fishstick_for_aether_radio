@@ -39,7 +39,10 @@ function isIgnoredTarget(target) {
 }
 
 /**
- * Hook to dismiss a page via swipe-down gesture.
+ * Hook to dismiss a page via swipe-down gesture using touch events.
+ * touchmove is registered with { passive: false } and calls preventDefault()
+ * once the downward drag engages, preventing mobile browser scroll cancellation.
+ *
  * @param {() => void} onDismiss Callback invoked when swipe down threshold is met
  * @param {{ enabled?: boolean }} [options] Additional configuration options
  * @returns {{ ref: import("react").RefObject, handlers: object }}
@@ -62,7 +65,17 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
   const lastTimeRef = useRef(0);
   const velocityRef = useRef(0);
   const currentDyRef = useRef(0);
-  const pointerIdRef = useRef(null);
+  const touchIdRef = useRef(null);
+
+  // Set overscroll-behavior-y: contain on html and body
+  useEffect(() => {
+    document.documentElement.style.overscrollBehaviorY = "contain";
+    document.body.style.overscrollBehaviorY = "contain";
+    return () => {
+      document.documentElement.style.overscrollBehaviorY = "";
+      document.body.style.overscrollBehaviorY = "";
+    };
+  }, []);
 
   const cleanupStyles = useCallback(() => {
     const root = ref.current;
@@ -75,11 +88,17 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
     document.documentElement.style.removeProperty("--drag-y");
   }, []);
 
-  const handlePointerDown = useCallback((e) => {
-    if (e.button !== undefined && e.button !== 0) return;
+  // ---------------------------------------------------------------------------
+  // Touch event handlers (Phones)
+  // ---------------------------------------------------------------------------
+
+  const handleTouchStart = useCallback((e) => {
     if (optionsRef.current?.enabled === false) return;
     // Do not initiate drag while any modal dialog is open (e.g. Queue modal)
     if (document.querySelector('[role="dialog"]')) return;
+
+    const touch = e.touches[0];
+    if (!touch) return;
 
     const root = ref.current;
     if (!isScrollAtTop(e.target, root)) return;
@@ -87,34 +106,42 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
 
     isTrackingRef.current = true;
     isDraggingRef.current = false;
-    startXRef.current = e.clientX;
-    startYRef.current = e.clientY;
-    lastYRef.current = e.clientY;
+    startXRef.current = touch.clientX;
+    startYRef.current = touch.clientY;
+    lastYRef.current = touch.clientY;
     lastTimeRef.current = performance.now();
     velocityRef.current = 0;
     currentDyRef.current = 0;
-    pointerIdRef.current = e.pointerId;
+    touchIdRef.current = touch.identifier;
   }, []);
 
-  const handlePointerMove = useCallback((e) => {
+  const handleTouchMove = useCallback((e) => {
     if (!isTrackingRef.current) return;
-    if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
 
-    const dx = e.clientX - startXRef.current;
-    const dy = e.clientY - startYRef.current;
+    let touch = null;
+    for (let i = 0; i < e.touches.length; i++) {
+      if (e.touches[i].identifier === touchIdRef.current) {
+        touch = e.touches[i];
+        break;
+      }
+    }
+    if (!touch) return;
+
+    const dx = touch.clientX - startXRef.current;
+    const dy = touch.clientY - startYRef.current;
 
     if (!isDraggingRef.current) {
-      // Ignore upward drags
+      // Ignore upward gestures
       if (dy < -10) {
         isTrackingRef.current = false;
         return;
       }
-      // Ignore horizontal drags
+      // Ignore horizontal gestures
       if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
         isTrackingRef.current = false;
         return;
       }
-      // Only engage after dy > 10px and |dy| > |dx| (vertical intent)
+      // Engage vertical drag once downward intent is established
       if (dy > 10 && Math.abs(dy) > Math.abs(dx)) {
         const root = ref.current;
         if (!isScrollAtTop(e.target, root)) {
@@ -126,17 +153,11 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
         if (root) {
           root.style.transition = "none";
         }
-        try {
-          if (e.target && typeof e.target.setPointerCapture === "function") {
-            e.target.setPointerCapture(e.pointerId);
-          }
-        } catch {
-          // Ignore pointer capture errors
-        }
       }
     }
 
     if (isDraggingRef.current) {
+      // Call preventDefault once vertical drag engages to stop browser navigation/scroll
       if (e.cancelable) {
         e.preventDefault();
       }
@@ -158,14 +179,14 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
       const now = performance.now();
       const dt = now - lastTimeRef.current;
       if (dt > 0) {
-        velocityRef.current = (e.clientY - lastYRef.current) / dt;
+        velocityRef.current = (touch.clientY - lastYRef.current) / dt;
       }
-      lastYRef.current = e.clientY;
+      lastYRef.current = touch.clientY;
       lastTimeRef.current = now;
     }
   }, []);
 
-  const handlePointerUp = useCallback(() => {
+  const handleTouchEnd = useCallback(() => {
     if (!isTrackingRef.current) return;
     isTrackingRef.current = false;
 
@@ -185,7 +206,6 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
     if (dy > 120 || velocity > 0.6) {
       if (root) {
         root.style.setProperty("--drag-y", `${dy}px`);
-        // Clean inline transform and opacity so state is clean if user returns
         root.style.transform = "";
         root.style.opacity = "";
         root.style.transition = "";
@@ -223,7 +243,7 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
     }
   }, []);
 
-  const handlePointerCancel = useCallback(() => {
+  const handleTouchCancel = useCallback(() => {
     if (!isTrackingRef.current && !isDraggingRef.current) return;
     isTrackingRef.current = false;
     if (isDraggingRef.current) {
@@ -249,33 +269,126 @@ export function useSwipeDownDismiss(onDismiss, options = {}) {
     }
   }, []);
 
-  useEffect(() => {
+  // ---------------------------------------------------------------------------
+  // Mouse event handlers fallback (Desktop)
+  // ---------------------------------------------------------------------------
+
+  const handleMouseDown = useCallback((e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (optionsRef.current?.enabled === false) return;
+    if (document.querySelector('[role="dialog"]')) return;
+
     const root = ref.current;
-    if (root) {
-      root.style.touchAction = "pan-y";
+    if (!isScrollAtTop(e.target, root)) return;
+    if (isIgnoredTarget(e.target)) return;
+
+    isTrackingRef.current = true;
+    isDraggingRef.current = false;
+    startXRef.current = e.clientX;
+    startYRef.current = e.clientY;
+    lastYRef.current = e.clientY;
+    lastTimeRef.current = performance.now();
+    velocityRef.current = 0;
+    currentDyRef.current = 0;
+    touchIdRef.current = null;
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isTrackingRef.current || touchIdRef.current !== null) return;
+
+    const dx = e.clientX - startXRef.current;
+    const dy = e.clientY - startYRef.current;
+
+    if (!isDraggingRef.current) {
+      if (dy < -10 || (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10)) {
+        isTrackingRef.current = false;
+        return;
+      }
+      if (dy > 10 && Math.abs(dy) > Math.abs(dx)) {
+        const root = ref.current;
+        if (!isScrollAtTop(e.target, root)) {
+          isTrackingRef.current = false;
+          return;
+        }
+        isDraggingRef.current = true;
+        if (root) {
+          root.style.transition = "none";
+        }
+      }
     }
 
-    const onMove = (e) => handlePointerMove(e);
-    const onUp = (e) => handlePointerUp(e);
-    const onCancel = (e) => handlePointerCancel(e);
+    if (isDraggingRef.current) {
+      if (e.cancelable) e.preventDefault();
+      const clampedDy = Math.max(0, dy);
+      currentDyRef.current = clampedDy;
+      const opacity = Math.max(0.6, 1 - clampedDy / 600);
 
-    window.addEventListener("pointermove", onMove, { passive: false });
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onCancel);
+      const root = ref.current;
+      if (root) {
+        root.style.transition = "none";
+        root.style.transform = `translateY(${clampedDy}px)`;
+        root.style.opacity = `${opacity}`;
+        root.style.setProperty("--drag-y", `${clampedDy}px`);
+      }
+      document.documentElement.style.setProperty("--drag-y", `${clampedDy}px`);
+
+      const now = performance.now();
+      const dt = now - lastTimeRef.current;
+      if (dt > 0) {
+        velocityRef.current = (e.clientY - lastYRef.current) / dt;
+      }
+      lastYRef.current = e.clientY;
+      lastTimeRef.current = now;
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    if (touchIdRef.current !== null) return;
+    handleTouchEnd();
+  }, [handleTouchEnd]);
+
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+
+    // Attach touch listeners to root with touchmove non-passive
+    root.addEventListener("touchstart", handleTouchStart, { passive: true });
+    root.addEventListener("touchmove", handleTouchMove, { passive: false });
+    root.addEventListener("touchend", handleTouchEnd, { passive: true });
+    root.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+
+    root.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove, { passive: false });
+    window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onCancel);
+      root.removeEventListener("touchstart", handleTouchStart);
+      root.removeEventListener("touchmove", handleTouchMove);
+      root.removeEventListener("touchend", handleTouchEnd);
+      root.removeEventListener("touchcancel", handleTouchCancel);
+
+      root.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
       cleanupStyles();
     };
-  }, [handlePointerMove, handlePointerUp, handlePointerCancel, cleanupStyles]);
+  }, [
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleTouchCancel,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    cleanupStyles,
+  ]);
 
   const handlers = useMemo(
     () => ({
-      onPointerDown: handlePointerDown,
+      onTouchStart: handleTouchStart,
+      onMouseDown: handleMouseDown,
     }),
-    [handlePointerDown]
+    [handleTouchStart, handleMouseDown]
   );
 
   return { ref, handlers };
