@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import Header from "../components/Header";
 import StationCard from "../components/StationCard";
+import ErrorBanner from "../components/ErrorBanner";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
 
@@ -16,8 +17,8 @@ export default function FavoritesPage() {
     <div className="min-h-screen bg-cream font-jetbrains text-ink">
       <Header />
       <main
-        className={`px-4 py-8 sm:px-6 md:px-10 md:py-12 ${
-          current ? "pb-48 md:pb-36" : "pb-28 md:pb-16"
+        className={`px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-8 sm:px-6 sm:py-8 md:px-10 md:py-12 ${
+          current ? "pb-[15rem] md:pb-36" : "pb-[10rem] md:pb-16"
         }`}
       >
         <BackLink className="mb-6" />
@@ -31,17 +32,7 @@ export default function FavoritesPage() {
         </h1>
 
         {error && stations.length === 0 ? (
-          <div className="mt-4 flex max-w-md items-center justify-between gap-3 rounded-chunky border-2 border-status-red-text bg-[#FEE2E2] p-3 text-status-red-text shadow-hard-sm">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider">
-              Error: {error}
-            </span>
-            <button
-              onClick={reload}
-              className="shrink-0 rounded-pill border-2 border-status-red-text bg-cream px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider shadow-hard-sm hover:bg-status-red hover:text-cream transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorBanner message={error} onRetry={reload} />
         ) : (
           <p className="mt-3 font-mono text-xs font-bold uppercase tracking-wider text-ink-muted sm:text-sm">
             {loading

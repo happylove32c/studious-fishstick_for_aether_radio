@@ -64,6 +64,38 @@ public class MediaControlsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void updateRecording(PluginCall call) {
+        Boolean rec = call.getBoolean("recording");
+        Integer elapsed = call.getInt("elapsed");
+
+        Context context = getContext();
+        if (context != null) {
+            Intent intent = new Intent(context, MediaPlaybackService.class);
+            intent.setAction(MediaPlaybackService.ACTION_UPDATE);
+            intent.putExtra(MediaPlaybackService.EXTRA_TITLE, stationTitle);
+            intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, stationArtist);
+            intent.putExtra(MediaPlaybackService.EXTRA_IS_PLAYING, isPlaying);
+            if (rec != null) {
+                intent.putExtra(MediaPlaybackService.EXTRA_RECORDING, rec);
+            }
+            if (elapsed != null) {
+                intent.putExtra(MediaPlaybackService.EXTRA_ELAPSED, elapsed);
+            }
+
+            try {
+                if ((isPlaying || (rec != null && rec)) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    ContextCompat.startForegroundService(context, intent);
+                } else {
+                    context.startService(intent);
+                }
+            } catch (Exception e) {
+                // Guard against rare Android background start restrictions
+            }
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
     public void stop(PluginCall call) {
         isPlaying = false;
         Context context = getContext();

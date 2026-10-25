@@ -47,6 +47,18 @@ export function updateNativePlaybackState({ isPlaying }) {
 }
 
 /**
+ * Syncs recording status with the native foreground service & notification.
+ */
+export function updateNativeRecording({ recording, elapsed }) {
+  if (!isNativePlatform()) return;
+  try {
+    MediaControls.updateRecording({ recording, elapsed }).catch(() => {});
+  } catch {
+    // Ignore
+  }
+}
+
+/**
  * Removes the notification and stops the background playback service.
  */
 export function stopNativeMedia() {

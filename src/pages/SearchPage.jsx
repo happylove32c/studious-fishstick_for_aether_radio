@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import GenreCard from "../components/GenreCard";
 import { Search, X } from "lucide-react";
 import Header from "../components/Header";
 import BackLink from "../components/BackLink";
 import StationCard from "../components/StationCard";
+import SkeletonCard from "../components/SkeletonCard";
+import ErrorBanner from "../components/ErrorBanner";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
 
@@ -14,26 +17,6 @@ function filterStations(stations = [], query = "") {
   );
 }
 
-function SkeletonCard() {
-  return (
-    <div className="min-h-[160px] sm:aspect-square sm:min-h-0 flex flex-col justify-between rounded-card border-3 border-ink bg-panel p-3.5 sm:p-5 md:p-6 shadow-hard animate-pulse">
-      <div className="flex items-start justify-between">
-        <div className="h-4 w-10 rounded-pill bg-panel-inset" />
-        <div className="h-7 w-7 rounded-full bg-panel-inset" />
-      </div>
-      <div>
-        <div className="mb-2 h-3 w-16 rounded-pill bg-panel-inset" />
-        <div className="h-6 sm:h-8 w-4/5 rounded-chunky bg-panel-inset mb-2.5" />
-        <div className="hidden sm:block h-3.5 w-24 rounded-pill bg-panel-inset/60" />
-      </div>
-      <div className="flex items-center justify-between border-t-2 border-panel-inset pt-3">
-        <div className="h-3 w-16 rounded-pill bg-panel-inset" />
-        <div className="h-6 w-6 rounded-pill bg-panel-inset" />
-      </div>
-    </div>
-  );
-}
-
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const { stations, loading, error, reload } = useStations();
@@ -42,12 +25,25 @@ export default function SearchPage() {
   const trimmed = query.trim();
   const results = filterStations(stations, query);
 
+  // Group genres case-insensitively for browsing when no query
+  const genres = useMemo(() => {
+    const map = new Map();
+    for (const s of stations) {
+      const key = s.genre?.toLowerCase() || "unknown";
+      if (!map.has(key)) {
+        map.set(key, { genre: s.genre, count: 0 });
+      }
+      map.get(key).count += 1;
+    }
+    return Array.from(map.values());
+  }, [stations]);
+
   return (
     <div className="min-h-screen bg-cream font-jetbrains text-ink">
       <Header />
       <main
-        className={`px-4 py-8 sm:px-6 md:px-10 md:py-12 ${
-          current ? "pb-48 md:pb-36" : "pb-28 md:pb-16"
+        className={`px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-8 sm:px-6 sm:py-8 md:px-10 md:py-12 ${
+          current ? "pb-[15rem] md:pb-36" : "pb-[10rem] md:pb-16"
         }`}
       >
         <BackLink className="mb-6" />
@@ -67,7 +63,6 @@ export default function SearchPage() {
           </div>
           <input
             type="search"
-            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Station name…"
@@ -88,17 +83,7 @@ export default function SearchPage() {
         </div>
 
         {error && stations.length === 0 && (
-          <div className="mt-4 flex max-w-md items-center justify-between gap-3 rounded-chunky border-2 border-status-red-text bg-[#FEE2E2] p-3 text-status-red-text shadow-hard-sm">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider">
-              Error: {error}
-            </span>
-            <button
-              onClick={reload}
-              className="shrink-0 rounded-pill border-2 border-status-red-text bg-cream px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider shadow-hard-sm hover:bg-status-red hover:text-cream transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorBanner message={error} onRetry={reload} />
         )}
 
         {/* State: Loading */}
@@ -110,11 +95,23 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* State: Empty Query Hint */}
-        {!loading && trimmed === "" && (
-          <p className="mt-6 font-mono text-xs font-bold uppercase tracking-wider text-ink-muted sm:text-sm">
-            Type a station name
-          </p>
+        {/* State: Empty Query – Browse Genres */}
+        {!loading && trimmed === "" && genres.length > 0 && (
+          <section className="mt-8">
+            <h2 className="font-fredoka text-2xl font-bold uppercase tracking-tight text-ink sm:text-3xl mb-4">
+              Browse genres
+            </h2>
+            <div className="grid grid-cols-1 min-[340px]:grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
+              {genres.map(({ genre, count }, i) => (
+                <GenreCard
+                  key={genre}
+                  number={String(i + 1).padStart(3, "0")}
+                  genre={genre}
+                  description={`${count} ${count === 1 ? "frequency" : "frequencies"} — tune in.`}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* State: No Matches Cartoon Empty State */}

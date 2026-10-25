@@ -1,0 +1,284 @@
+import { useRef, useEffect, useCallback, useMemo } from "react";
+
+/**
+ * Check if all scroll containers (from target up to window) are at scrollTop === 0.
+ */
+function isScrollAtTop(target, root) {
+  let cur = target;
+  while (cur && cur !== root) {
+    if (cur.scrollTop > 0) return false;
+    cur = cur.parentElement;
+  }
+  if (root && root.scrollTop > 0) return false;
+
+  let parent = root?.parentElement;
+  while (parent && parent !== document.body && parent !== document.documentElement) {
+    if (parent.scrollTop > 0) return false;
+    parent = parent.parentElement;
+  }
+
+  const windowScroll =
+    window.scrollY ||
+    document.documentElement?.scrollTop ||
+    document.body?.scrollTop ||
+    0;
+  if (windowScroll > 0) return false;
+
+  return true;
+}
+
+/**
+ * Check if touch began on an interactive or ignored element.
+ */
+function isIgnoredTarget(target) {
+  if (!target || !(target instanceof Element)) return false;
+  if (target.closest('input[type="range"]')) return true;
+  if (target.closest("canvas")) return true;
+  if (target.closest("[data-no-swipe]")) return true;
+  return false;
+}
+
+/**
+ * Hook to dismiss a page via swipe-down gesture.
+ * @param {() => void} onDismiss Callback invoked when swipe down threshold is met
+ * @param {{ enabled?: boolean }} [options] Additional configuration options
+ * @returns {{ ref: import("react").RefObject, handlers: object }}
+ */
+export function useSwipeDownDismiss(onDismiss, options = {}) {
+  const ref = useRef(null);
+  const onDismissRef = useRef(onDismiss);
+  const optionsRef = useRef(options);
+
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+    optionsRef.current = options;
+  });
+
+  const isTrackingRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startYRef = useRef(0);
+  const lastYRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const velocityRef = useRef(0);
+  const currentDyRef = useRef(0);
+  const pointerIdRef = useRef(null);
+
+  const cleanupStyles = useCallback(() => {
+    const root = ref.current;
+    if (root) {
+      root.style.transform = "";
+      root.style.opacity = "";
+      root.style.transition = "";
+      root.style.removeProperty("--drag-y");
+    }
+    document.documentElement.style.removeProperty("--drag-y");
+  }, []);
+
+  const handlePointerDown = useCallback((e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (optionsRef.current?.enabled === false) return;
+    // Do not initiate drag while any modal dialog is open (e.g. Queue modal)
+    if (document.querySelector('[role="dialog"]')) return;
+
+    const root = ref.current;
+    if (!isScrollAtTop(e.target, root)) return;
+    if (isIgnoredTarget(e.target)) return;
+
+    isTrackingRef.current = true;
+    isDraggingRef.current = false;
+    startXRef.current = e.clientX;
+    startYRef.current = e.clientY;
+    lastYRef.current = e.clientY;
+    lastTimeRef.current = performance.now();
+    velocityRef.current = 0;
+    currentDyRef.current = 0;
+    pointerIdRef.current = e.pointerId;
+  }, []);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!isTrackingRef.current) return;
+    if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
+
+    const dx = e.clientX - startXRef.current;
+    const dy = e.clientY - startYRef.current;
+
+    if (!isDraggingRef.current) {
+      // Ignore upward drags
+      if (dy < -10) {
+        isTrackingRef.current = false;
+        return;
+      }
+      // Ignore horizontal drags
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        isTrackingRef.current = false;
+        return;
+      }
+      // Only engage after dy > 10px and |dy| > |dx| (vertical intent)
+      if (dy > 10 && Math.abs(dy) > Math.abs(dx)) {
+        const root = ref.current;
+        if (!isScrollAtTop(e.target, root)) {
+          isTrackingRef.current = false;
+          return;
+        }
+
+        isDraggingRef.current = true;
+        if (root) {
+          root.style.transition = "none";
+        }
+        try {
+          if (e.target && typeof e.target.setPointerCapture === "function") {
+            e.target.setPointerCapture(e.pointerId);
+          }
+        } catch {
+          // Ignore pointer capture errors
+        }
+      }
+    }
+
+    if (isDraggingRef.current) {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      const clampedDy = Math.max(0, dy);
+      currentDyRef.current = clampedDy;
+
+      // Slight opacity fade (1 - dy/600, min 0.6)
+      const opacity = Math.max(0.6, 1 - clampedDy / 600);
+
+      const root = ref.current;
+      if (root) {
+        root.style.transition = "none";
+        root.style.transform = `translateY(${clampedDy}px)`;
+        root.style.opacity = `${opacity}`;
+        root.style.setProperty("--drag-y", `${clampedDy}px`);
+      }
+      document.documentElement.style.setProperty("--drag-y", `${clampedDy}px`);
+
+      const now = performance.now();
+      const dt = now - lastTimeRef.current;
+      if (dt > 0) {
+        velocityRef.current = (e.clientY - lastYRef.current) / dt;
+      }
+      lastYRef.current = e.clientY;
+      lastTimeRef.current = now;
+    }
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    if (!isTrackingRef.current) return;
+    isTrackingRef.current = false;
+
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+
+    const root = ref.current;
+    const now = performance.now();
+    let velocity = velocityRef.current;
+    if (now - lastTimeRef.current > 70) {
+      velocity = 0;
+    }
+
+    const dy = currentDyRef.current;
+
+    // Release: dismiss if dy > 120px or velocity > 0.6px/ms, calling onDismiss()
+    if (dy > 120 || velocity > 0.6) {
+      if (root) {
+        root.style.setProperty("--drag-y", `${dy}px`);
+        // Clean inline transform and opacity so state is clean if user returns
+        root.style.transform = "";
+        root.style.opacity = "";
+        root.style.transition = "";
+      }
+      document.documentElement.style.setProperty("--drag-y", `${dy}px`);
+
+      // Clean up global CSS variable after AnimatedRoutes vertical-exit transition (300ms)
+      setTimeout(() => {
+        document.documentElement.style.removeProperty("--drag-y");
+        if (root) {
+          root.style.removeProperty("--drag-y");
+        }
+      }, 400);
+
+      onDismissRef.current?.();
+    } else {
+      // Otherwise snap back over 200ms ease-in-out
+      if (root) {
+        root.style.transition = "transform 200ms ease-in-out, opacity 200ms ease-in-out";
+        root.style.transform = "translateY(0px)";
+        root.style.opacity = "1";
+        root.style.setProperty("--drag-y", "0px");
+      }
+      document.documentElement.style.setProperty("--drag-y", "0px");
+
+      setTimeout(() => {
+        if (root) {
+          root.style.transition = "";
+          root.style.transform = "";
+          root.style.opacity = "";
+          root.style.removeProperty("--drag-y");
+        }
+        document.documentElement.style.removeProperty("--drag-y");
+      }, 200);
+    }
+  }, []);
+
+  const handlePointerCancel = useCallback(() => {
+    if (!isTrackingRef.current && !isDraggingRef.current) return;
+    isTrackingRef.current = false;
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      const root = ref.current;
+      if (root) {
+        root.style.transition = "transform 200ms ease-in-out, opacity 200ms ease-in-out";
+        root.style.transform = "translateY(0px)";
+        root.style.opacity = "1";
+        root.style.setProperty("--drag-y", "0px");
+      }
+      document.documentElement.style.setProperty("--drag-y", "0px");
+
+      setTimeout(() => {
+        if (root) {
+          root.style.transition = "";
+          root.style.transform = "";
+          root.style.opacity = "";
+          root.style.removeProperty("--drag-y");
+        }
+        document.documentElement.style.removeProperty("--drag-y");
+      }, 200);
+    }
+  }, []);
+
+  useEffect(() => {
+    const root = ref.current;
+    if (root) {
+      root.style.touchAction = "pan-y";
+    }
+
+    const onMove = (e) => handlePointerMove(e);
+    const onUp = (e) => handlePointerUp(e);
+    const onCancel = (e) => handlePointerCancel(e);
+
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      cleanupStyles();
+    };
+  }, [handlePointerMove, handlePointerUp, handlePointerCancel, cleanupStyles]);
+
+  const handlers = useMemo(
+    () => ({
+      onPointerDown: handlePointerDown,
+    }),
+    [handlePointerDown]
+  );
+
+  return { ref, handlers };
+}
+
+export default useSwipeDownDismiss;

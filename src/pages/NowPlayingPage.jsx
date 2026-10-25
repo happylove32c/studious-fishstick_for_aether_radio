@@ -1,20 +1,38 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
+  AudioLines,
+  Bluetooth,
   ChevronDown,
+  Circle,
+  Disc3,
+  Headphones,
   Heart,
+  ListMusic,
   Pause,
   Play,
   Radio,
+  Shuffle,
   SkipBack,
   SkipForward,
+  Smartphone,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 import Header from "../components/Header";
 import { useGoBack } from "../hooks/useGoBack";
 import { usePlayer } from "../context/usePlayer";
+import { useStations } from "../context/useStations";
+import { useAudioRoute } from "../hooks/useAudioRoute";
+import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
+import { useModalPresence } from "../hooks/useModalPresence";
+import { registerModal } from "../utils/modalStack";
+import { useSheetDrag } from "../hooks/useSheetDrag";
+import { useSwipeDownDismiss } from "../hooks/useSwipeDownDismiss";
 import { getGenreColor, readableOn } from "../utils/genreColors";
+import { getFrequency } from "../utils/frequency";
 
 // ---------------------------------------------------------------------------
 // Theme constants tuned for cream cartoon UI
@@ -23,24 +41,12 @@ import { getGenreColor, readableOn } from "../utils/genreColors";
 const IDLE = "#57534E";
 const noop = () => {};
 
-// ---------------------------------------------------------------------------
-// Stable frequency derivation
-// ---------------------------------------------------------------------------
-
-function hashToFreq(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = (h * 31 + str.charCodeAt(i)) | 0;
-  }
-  const norm = ((h >>> 0) % 2001) / 100; // 0.00 - 20.00
-  return 88.0 + norm; // 88.0 - 108.0
-}
-
-function getFrequency(station) {
-  if (station?.frequency) return Number(station.frequency);
-  const seed = station?._id || station?.name || "unknown";
-  return Math.round(hashToFreq(seed) * 10) / 10;
-}
+const ROUTE_CONFIG = {
+  bluetooth: { label: "Bluetooth", icon: Bluetooth },
+  wired: { label: "Headphones", icon: Headphones },
+  speaker: { label: "Speaker", icon: Volume2 },
+  earpiece: { label: "Earpiece", icon: Smartphone },
+};
 
 // ---------------------------------------------------------------------------
 // Tuning ruler restyled for cream cartoon UI
@@ -52,15 +58,13 @@ function TuningRuler({ pct, live, accent }) {
   const needle = live ? accent : "#1B1A17";
 
   return (
-    <div className="mx-2 sm:mx-4 mt-2">
-      <div className="relative h-9 border-b-2 border-ink pb-1">
+    <div className="mx-1 sm:mx-3 mt-2">
+      <div className="relative h-8 border-b-2 border-ink pb-1">
         {TICKS.map((i) => (
           <span
             key={i}
             className={`absolute bottom-0 -translate-x-1/2 ${
-              i % 4 === 0
-                ? "h-5 w-0.5 bg-ink"
-                : "h-2.5 w-[1px] bg-ink/30"
+              i % 4 === 0 ? "h-4 w-0.5 bg-ink" : "h-2 w-[1px] bg-ink/30"
             }`}
             style={{ left: `${(i / 40) * 100}%` }}
           />
@@ -73,7 +77,7 @@ function TuningRuler({ pct, live, accent }) {
         />
       </div>
 
-      <div className="relative mt-2 h-4 font-mono text-[11px] font-bold text-ink-muted">
+      <div className="relative mt-1.5 h-4 font-mono text-[10px] font-bold text-ink-muted sm:text-[11px]">
         {TICKS.filter((i) => i % 8 === 0).map((i) => (
           <span
             key={i}
@@ -90,7 +94,6 @@ function TuningRuler({ pct, live, accent }) {
 
 // ---------------------------------------------------------------------------
 // Equalizer: Spectrogram bars drawn rounded with genre colour & ink outline
-// (Canvas logic and audio analysis logic untouched)
 // ---------------------------------------------------------------------------
 
 const BAR_COUNT = 24;
@@ -275,17 +278,14 @@ function Equalizer({ active, analyserRef, color, onMode }) {
   }, [active, analyserRef, color, onMode]);
 
   return (
-    <div className="relative min-h-[48px] flex-1">
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 block h-full w-full"
-      />
+    <div className="relative min-h-[50px] flex-1">
+      <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full" />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Hero Now Playing Page
+// Main Now Playing Page (Spotify / Studio Deck Redesign)
 // ---------------------------------------------------------------------------
 
 export default function NowPlayingPage() {
@@ -306,56 +306,89 @@ export default function NowPlayingPage() {
     isFavorite,
     toggleFavorite,
     analyserRef,
+    format,
+    recording,
+    recordElapsed,
+    startRecording,
+    stopRecording,
+    getRecordStream,
   } = usePlayer();
 
+  const { stations: allStations } = useStations();
   const goBack = useGoBack();
-  const [isClosing, setIsClosing] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const { ref: swipeRef, handlers: swipeHandlers } = useSwipeDownDismiss(goBack, {
+    enabled: !queueOpen,
+  });
+  const { mounted: queueMounted, closing: queueClosing } = useModalPresence(queueOpen);
+  const { sheetRef: queueSheetRef, hasEntered: queueHasEntered, onAnimationEnd: handleQueueAnimEnd } =
+    useSheetDrag(() => setQueueOpen(false));
+  useLockBodyScroll(queueMounted);
+  const { route, isNative } = useAudioRoute();
+  const currentRoute = ROUTE_CONFIG[route] || ROUTE_CONFIG.speaker;
+  const RouteIcon = currentRoute.icon;
 
-  const handleClose = () => {
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      goBack();
-      return;
-    }
-    setIsClosing(true);
-  };
+  // Queue to display in modal
+  const queue = useMemo(() => {
+    if (playlist && playlist.length > 1) return playlist;
+    return allStations || [];
+  }, [playlist, allStations]);
 
-  const handleAnimationEnd = (e) => {
-    if (e.target === e.currentTarget && isClosing) {
-      goBack();
-    }
-  };
+  useEffect(() => {
+    if (!queueOpen) return;
+    return registerModal(() => setQueueOpen(false));
+  }, [queueOpen]);
+
+  useEffect(() => {
+    if (!queueOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setQueueOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [queueOpen]);
 
   const handleRetry = useCallback(() => {
     if (current) play(current, playlist);
   }, [current, play, playlist]);
+
+
+  const handleRandomSpin = () => {
+    if (queue.length === 0) return;
+    const rand = queue[Math.floor(Math.random() * queue.length)];
+    play(rand, queue);
+  };
 
   // -------------------------------------------------------------------------
   // Tactile Empty State
   // -------------------------------------------------------------------------
   if (!current) {
     return (
-      <div className="min-h-screen bg-cream font-jetbrains text-ink">
+      <div
+        ref={swipeRef}
+        {...swipeHandlers}
+        style={{ touchAction: "pan-y" }}
+        className="min-h-screen bg-cream font-jetbrains text-ink touch-pan-y"
+      >
         <Header />
         <main className="mx-auto flex max-w-xl flex-col items-center px-4 py-16 text-center sm:py-24">
           <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-panel border-3 border-ink bg-panel shadow-hard-lg">
             <Radio className="h-12 w-12 text-ink" strokeWidth={2.5} />
           </div>
 
-          <p className="label font-bold uppercase text-ink-muted">
-            Now tuned
-          </p>
-
+          <p className="label font-bold uppercase text-ink-muted">Now tuned</p>
           <h1 className="mt-2 font-fredoka text-4xl font-bold uppercase leading-tight sm:text-6xl text-ink">
             No signal
           </h1>
-
           <p className="mt-3 max-w-sm font-mono text-xs font-medium text-ink-muted sm:text-sm">
             Pick a station on the radio dial to start transmitting.
           </p>
 
           <Link
             to="/"
-            className="mt-8 inline-flex items-center justify-center rounded-pill border-3 border-ink bg-[#FFD166] px-8 py-3.5 font-fredoka text-base font-bold uppercase tracking-wide text-ink shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
+            className="mt-8 inline-flex items-center justify-center rounded-pill border-3 border-ink bg-[#FFD166] px-8 py-3.5 font-fredoka text-base font-bold uppercase tracking-wide text-ink shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm"
           >
             Browse stations
           </Link>
@@ -364,208 +397,475 @@ export default function NowPlayingPage() {
     );
   }
 
-  // -------------------------------------------------------------------------
   // Active Station Data
-  // -------------------------------------------------------------------------
-  const genre = current.genre;
-
+  const genre = current.genre || "Radio";
   const freq = getFrequency(current);
   const freqStr = freq.toFixed(1);
   const tunerPct = Math.min(Math.max(((freq - 88) / 20) * 100, 0), 100);
 
   const live = isPlaying && status === "connected";
   const fav = isFavorite(current);
-  const stationCount = playlist.length;
   const shownVolume = muted ? 0 : volume;
 
   const accent = getGenreColor(current.genre);
   const ink = readableOn(accent);
 
-  let statusText = "Paused";
-  let statusDotClass = "bg-ink-muted";
+  const recordStream = getRecordStream ? getRecordStream() : null;
+  const canRecord = Boolean(live && recordStream);
+  const formattedElapsed = `${String(Math.floor(recordElapsed / 60)).padStart(
+    2,
+    "0"
+  )}:${String(recordElapsed % 60).padStart(2, "0")}`;
 
-  if (error || status === "error") {
-    statusText = "Error";
-    statusDotClass = "bg-status-red";
-  } else if (status === "connecting") {
-    statusText = "Connecting";
-    statusDotClass = "bg-status-amber animate-pulse";
-  } else if (isPlaying && status === "connected") {
-    statusText = "Live";
-    statusDotClass = "bg-status-green animate-pulse";
-  }
 
   return (
     <div
+      ref={swipeRef}
+      {...swipeHandlers}
       style={{
         "--g": accent,
         "--gb": `${accent}99`,
         "--gt": ink,
+        touchAction: "pan-y",
       }}
-      onAnimationEnd={handleAnimationEnd}
-      className={`flex h-screen h-dvh flex-col justify-between overflow-hidden bg-cream font-jetbrains text-ink ${
-        isClosing ? "animate-np-down" : "animate-np-up"
-      }`}
+      className="min-h-screen bg-cream font-jetbrains text-ink pb-12 touch-pan-y"
     >
-      <main className="mx-auto flex h-full min-h-0 w-full max-w-xl flex-1 flex-col justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 sm:py-5">
-        {/* 1. Top row: ChevronDown collapse button + favorite heart button */}
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Collapse now playing"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
-          >
-            <ChevronDown className="h-5 w-5" strokeWidth={2.5} />
-          </button>
+      {/* 1. Studio Deck Top Bar */}
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b-3 border-ink bg-cream/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6 md:px-10">
+        <button
+          type="button"
+          onClick={goBack}
+          aria-label="Minimize"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
+        >
+          <ChevronDown className="h-5 w-5" strokeWidth={2.5} />
+        </button>
 
-          <button
-            type="button"
-            onClick={() => toggleFavorite(current)}
-            aria-pressed={fav}
-            aria-label={fav ? "Remove from favorites" : "Add to favorites"}
-            title={fav ? "Remove from favorites" : "Add to favorites"}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-pill border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 ${
-              fav
-                ? "bg-status-red text-cream"
-                : "bg-panel text-ink hover:bg-cream"
+        <button
+          type="button"
+          onClick={() => setQueueOpen(true)}
+          aria-label="Queue"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
+        >
+          <ListMusic className="h-5 w-5" strokeWidth={2.5} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => toggleFavorite(current)}
+          aria-pressed={fav}
+          aria-label={fav ? "Remove from presets" : "Add to presets"}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 ${
+            fav ? "bg-status-red text-cream" : "bg-panel text-ink hover:bg-cream"
+          }`}
+        >
+          <Heart className={`h-5 w-5 ${fav ? "fill-current" : ""}`} strokeWidth={2.5} />
+        </button>
+      </header>
+
+      {/* 2. Main Studio Deck Grid (Responsive 2-Column on Desktop) */}
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 md:px-10">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+          {/* Left Column (Cols 1-7): Merged Artwork Vinyl Stage & Spectrogram Deck */}
+          <div className="flex flex-col gap-5 lg:col-span-7">
+            {/* Merged Panel */}
+            <div className="relative overflow-hidden rounded-panel border-3 border-ink bg-panel p-6 shadow-hard-lg sm:p-8">
+              {/* Dynamic Aura */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -left-10 -top-10 h-64 w-64 rounded-full opacity-30 blur-3xl transition-colors duration-700"
+                style={{ backgroundColor: accent }}
+              />
+
+              <div className="relative z-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+                {/* Vinyl Record Disc / Callout Badge */}
+                <div className="relative flex shrink-0 items-center justify-center">
+                  <div
+                    style={{ backgroundColor: accent, color: ink }}
+                    className="flex h-36 w-36 items-center justify-center rounded-card border-3 border-ink shadow-hard transition-transform duration-tactile sm:h-44 sm:w-44"
+                  >
+                    {/* Vinyl turntable concentric circles */}
+                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-2 border-ink bg-[#1B1A17] sm:h-36 sm:w-36">
+                      <div className="h-20 w-20 rounded-full border border-cream/20 flex items-center justify-center">
+                        <div
+                          style={{ backgroundColor: accent }}
+                          className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink text-ink ${
+                            live ? "animate-[spin_4s_linear_infinite]" : ""
+                          }`}
+                        >
+                          <Disc3 className="h-6 w-6" strokeWidth={2} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Station Callout Info */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      style={{ backgroundColor: accent, color: ink }}
+                      className="rounded-pill border-2 border-ink px-3 py-0.5 font-mono text-[11px] font-black uppercase tracking-wider shadow-hard-sm"
+                    >
+                      {genre}
+                    </span>
+                    <span className="rounded-pill border-2 border-ink bg-panel-inset px-2.5 py-0.5 font-mono text-[11px] font-bold text-ink">
+                      {freqStr} MHz FM
+                    </span>
+                  </div>
+
+                  <h1 className="mt-3 font-fredoka text-3xl font-bold uppercase leading-tight text-ink sm:text-4xl md:text-5xl">
+                    {current.name}
+                  </h1>
+
+                  <p className="mt-1 font-mono text-xs font-medium text-ink-muted">
+                    Broadcast format: {format} • Receiver locked
+                  </p>
+                </div>
+              </div>
+
+              {/* Equalizer (Canvas Spectrogram) */}
+              <div
+                data-no-swipe
+                className="relative mt-6 min-h-[70px] h-20 sm:h-24 w-full flex"
+              >
+                <Equalizer
+                  active={live}
+                  analyserRef={analyserRef}
+                  color={live ? accent : IDLE}
+                  onMode={noop}
+                />
+              </div>
+
+              {/* Tuning Ruler */}
+              <div className="mt-4">
+                <TuningRuler pct={tunerPct} live={live} accent={accent} />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column (Cols 8-12): Master Control Deck */}
+          <div className="flex flex-col gap-5 lg:col-span-5">
+            {/* Master Transport & Volume Panel */}
+            <div className="rounded-panel border-3 border-ink bg-panel p-5 shadow-hard sm:p-6">
+              <h2 className="mb-4 font-fredoka text-lg font-bold uppercase tracking-wider text-ink">
+                Master Control Deck
+              </h2>
+
+              {/* Transport Buttons: Prev, Play/Pause, Next */}
+              <div className="grid grid-cols-[1fr_2.5fr_1fr] items-center gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={prev}
+                  disabled={queue.length <= 1}
+                  aria-label="Previous station"
+                  className="flex h-13 items-center justify-center rounded-pill border-2 border-ink bg-cream font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0 disabled:opacity-30"
+                >
+                  <SkipBack className="h-5 w-5" strokeWidth={2.5} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggle}
+                  style={{ backgroundColor: live ? "#1B1A17" : accent, color: live ? "#FAF6EE" : ink }}
+                  className="flex h-14 items-center justify-center gap-2.5 rounded-pill border-3 border-ink font-fredoka text-base font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 sm:text-lg"
+                >
+                  {isPlaying ? (
+                    <>
+                      <Pause className="h-6 w-6" strokeWidth={2.5} />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-6 w-6 ml-0.5" strokeWidth={2.5} />
+                      <span>Transmit</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={next}
+                  disabled={queue.length <= 1}
+                  aria-label="Next station"
+                  className="flex h-13 items-center justify-center rounded-pill border-2 border-ink bg-cream font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0 disabled:opacity-30"
+                >
+                  <SkipForward className="h-5 w-5" strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* Record Broadcast Button */}
+              <div className="mt-3.5">
+                <button
+                  type="button"
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={!canRecord && !recording}
+                  title={
+                    recording
+                      ? "Stop recording"
+                      : !live
+                      ? "Transmit live broadcast to record"
+                      : !recordStream
+                      ? "Stream lacks CORS headers, cannot record"
+                      : "Record station broadcast"
+                  }
+                  className={`flex h-12 w-full items-center justify-between rounded-pill border-2 border-ink px-4 font-mono text-xs font-bold uppercase tracking-wider shadow-hard-sm transition-all duration-tactile ease-spring ${
+                    recording
+                      ? "bg-[#FF4D4D] text-cream -translate-y-0.5 shadow-hard animate-pulse"
+                      : !canRecord
+                      ? "bg-panel-inset text-ink/40 cursor-not-allowed opacity-60"
+                      : "bg-cream text-ink hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Circle
+                      className={`h-4 w-4 ${
+                        recording
+                          ? "fill-cream text-cream animate-ping"
+                          : canRecord
+                          ? "fill-[#FF4D4D] text-[#FF4D4D]"
+                          : "text-ink/40"
+                      }`}
+                      strokeWidth={2.5}
+                    />
+                    <span>{recording ? "Recording Broadcast" : "Record Station"}</span>
+                  </div>
+
+                  {recording ? (
+                    <span className="font-mono text-xs font-black tracking-widest bg-ink/30 px-2.5 py-0.5 rounded-pill text-cream">
+                      {formattedElapsed}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[10px] text-ink-muted">
+                      {!live ? "OFFLINE" : !recordStream ? "NO CORS" : "READY"}
+                    </span>
+                  )}
+                </button>
+
+                {/* Short hint when disabled */}
+                {!recording && (!live || !recordStream) && (
+                  <p className="mt-1 px-1 font-mono text-[10px] text-ink-muted">
+                    {!live
+                      ? "* Start live transmission to enable recording."
+                      : "* Station lacks CORS audio headers and cannot be recorded."}
+                  </p>
+                )}
+              </div>
+
+              {/* Volume Slider & Mute */}
+              <div
+                data-no-swipe
+                className="mt-5 rounded-chunky border-2 border-ink bg-panel-inset p-3"
+              >
+                <div className="flex items-center justify-between font-mono text-xs font-bold text-ink mb-2">
+                  <span className="uppercase tracking-wider">Volume Output</span>
+                  <span>{Math.round(shownVolume * 100)}%</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={toggleMute}
+                    aria-label={muted ? "Unmute" : "Mute"}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile hover:scale-105 active:scale-95"
+                  >
+                    {muted ? (
+                      <VolumeX className="h-4 w-4" strokeWidth={2.5} />
+                    ) : (
+                      <Volume2 className="h-4 w-4" strokeWidth={2.5} />
+                    )}
+                  </button>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={shownVolume}
+                    onChange={(e) => setVolume(Number(e.target.value))}
+                    aria-label="Volume slider"
+                    className="np-slider h-2.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border-2 border-ink outline-none"
+                    style={{
+                      background: `linear-gradient(to right, ${accent} ${
+                        shownVolume * 100
+                      }%, #FAF6EE ${shownVolume * 100}%)`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Audio Route Output Indicator */}
+              {isNative && (
+                <div className="mt-3 flex items-center justify-between font-mono text-xs font-bold uppercase">
+                  <span className="tracking-wider text-ink">Output</span>
+                  <div className="inline-flex items-center gap-1.5 rounded-chunky border-2 border-ink bg-panel-inset px-2.5 py-1 text-ink">
+                    <RouteIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    <span>{currentRoute.label}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Actions: Random dial & Favorite */}
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRandomSpin}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-pill border-2 border-ink bg-cream py-2 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0"
+                >
+                  <Shuffle className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  <span>Random Frequency</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Error Banner if any */}
+            {error && (
+              <div className="flex items-center justify-between gap-3 rounded-chunky border-2 border-status-red-text bg-[#FEE2E2] p-3 text-status-red-text shadow-hard-sm">
+                <span className="truncate font-mono text-xs font-bold uppercase tracking-wider">
+                  Signal error: {error}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="shrink-0 rounded-pill border-2 border-status-red-text bg-cream px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-status-red hover:text-cream transition-colors shadow-hard-sm"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* 3. Queue Bottom Sheet Modal */}
+      {queueMounted &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Up Next Queue"
+            className={`fixed inset-0 z-[100] flex items-end justify-center ${
+              queueClosing ? "pointer-events-none" : ""
             }`}
           >
-            <Heart
-              className={`h-4 w-4 ${fav ? "fill-current" : ""}`}
-              strokeWidth={2.5}
-            />
-          </button>
-        </div>
-
-        {/* 2. Station name & Details */}
-        <div>
-          <h1
-            className="truncate font-fredoka text-2xl font-bold uppercase leading-tight text-ink sm:text-4xl"
-            title={current.name}
-          >
-            {current.name}
-          </h1>
-
-          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-ink-muted">
-            <span
-              className="rounded-pill border-2 border-ink px-2.5 py-0.5 text-ink shadow-hard-sm"
-              style={{ backgroundColor: accent }}
-            >
-              {genre}
-            </span>
-            <span>·</span>
-            <span>{freqStr} MHz</span>
-            <span>·</span>
-            <span className="flex items-center gap-1.5 text-ink">
-              <span
-                className={`h-2.5 w-2.5 rounded-full border border-ink ${statusDotClass}`}
-              />
-              <span>{statusText}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* 3. One card: Spectrogram + TuningRuler */}
-        <div className="flex min-h-[140px] flex-1 flex-col justify-between rounded-panel border-3 border-ink bg-panel p-3.5 sm:p-5 shadow-hard">
-          <Equalizer
-            active={live}
-            analyserRef={analyserRef}
-            color={live ? accent : IDLE}
-            onMode={noop}
-          />
-          <TuningRuler pct={tunerPct} live={live} accent={accent} />
-        </div>
-
-        {/* 4. Controls Card */}
-        <div className="rounded-panel border-3 border-ink bg-panel p-3.5 sm:p-5 shadow-hard">
-          {/* Transport Buttons */}
-          <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 sm:gap-3">
-            <button
-              onClick={prev}
-              disabled={stationCount <= 1}
-              aria-label="Previous station"
-              className="flex h-11 items-center justify-center gap-2 rounded-pill border-2 border-ink bg-cream font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
-            >
-              <SkipBack className="h-4 w-4" strokeWidth={2.5} />
-              <span className="hidden sm:inline">Prev</span>
-            </button>
-
-            <button
-              onClick={toggle}
-              className="flex h-11 items-center justify-center gap-2.5 rounded-pill border-3 border-ink bg-[color:var(--g)] text-[color:var(--gt)] font-fredoka text-sm font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
-              aria-label={isPlaying ? "Pause playback" : "Start playback"}
-            >
-              {isPlaying ? (
-                <Pause className="h-5 w-5" strokeWidth={2.5} />
-              ) : (
-                <Play className="h-5 w-5 ml-0.5" strokeWidth={2.5} />
-              )}
-              <span>{isPlaying ? "Pause" : "Play"}</span>
-            </button>
-
-            <button
-              onClick={next}
-              disabled={stationCount <= 1}
-              aria-label="Next station"
-              className="flex h-11 items-center justify-center gap-2 rounded-pill border-2 border-ink bg-cream font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-hard-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
-            >
-              <span className="hidden sm:inline">Next</span>
-              <SkipForward className="h-4 w-4" strokeWidth={2.5} />
-            </button>
-          </div>
-
-          {/* Volume Row */}
-          <div className="mt-3 flex items-center gap-2.5 border-t-2 border-panel-inset pt-3">
-            <button
-              onClick={toggleMute}
-              aria-label={muted ? "Unmute" : "Mute"}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill border-2 border-ink bg-cream text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2"
-            >
-              {muted ? (
-                <VolumeX className="h-4 w-4" strokeWidth={2.5} />
-              ) : (
-                <Volume2 className="h-4 w-4" strokeWidth={2.5} />
-              )}
-            </button>
-
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={shownVolume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              aria-label="Volume"
-              className="np-slider h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border-2 border-ink outline-none"
-              style={{
-                background: `linear-gradient(to right, ${accent} ${
-                  shownVolume * 100
-                }%, #F0EAE1 ${shownVolume * 100}%)`,
-              }}
+            {/* Backdrop */}
+            <div
+              className={`absolute inset-0 bg-ink/50 backdrop-blur-sm ${
+                queueClosing ? "animate-backdrop-out" : "animate-backdrop-in"
+              }`}
+              onClick={() => setQueueOpen(false)}
+              aria-hidden="true"
             />
 
-            <span className="w-10 shrink-0 text-right font-mono text-xs font-bold text-ink">
-              {Math.round(shownVolume * 100)}%
-            </span>
-          </div>
-        </div>
-
-        {/* 5. Error Banner (only when error) */}
-        {error && (
-          <div className="flex items-center justify-between gap-3 rounded-chunky border-2 border-status-red-text bg-[#FEE2E2] p-2.5 text-status-red-text shadow-hard-sm">
-            <span className="truncate font-mono text-xs font-bold uppercase tracking-wider">
-              Signal error: {error}
-            </span>
-            <button
-              onClick={handleRetry}
-              className="shrink-0 rounded-pill border-2 border-status-red-text bg-cream px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-status-red hover:text-cream transition-colors shadow-hard-sm"
+            {/* Sheet */}
+            <div
+              ref={queueSheetRef}
+              onAnimationEnd={handleQueueAnimEnd}
+              style={{ touchAction: "pan-y" }}
+              className={`relative w-full max-w-lg max-h-[75vh] flex flex-col overflow-hidden rounded-t-panel border-t-3 border-x-3 border-ink bg-cream shadow-hard-lg pb-[max(1rem,env(safe-area-inset-bottom))] ${
+                queueClosing ? "animate-sheet-out" : queueHasEntered ? "" : "animate-sheet-in"
+              }`}
+              onClick={(e) => e.stopPropagation()}
             >
-              Retry
-            </button>
-          </div>
+              {/* Drag notch */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="h-1.5 w-12 rounded-full border border-ink bg-ink/30" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between border-b-2 border-panel-inset px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <ListMusic className="h-5 w-5 text-ink" strokeWidth={2.5} />
+                  <h3 className="font-fredoka text-lg font-bold uppercase tracking-wider text-ink">
+                    Up Next
+                  </h3>
+                  <span className="font-mono text-xs font-bold text-ink-muted">
+                    ({queue.length})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQueueOpen(false)}
+                  aria-label="Close queue"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-panel text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:scale-105 active:scale-95"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* Scrollable list */}
+              <div
+                className="flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y px-5 py-3 pr-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                style={{ touchAction: "pan-y" }}
+              >
+                {queue.map((s, idx) => {
+                  const isCurrentThis =
+                    current &&
+                    (current._id === s._id || current.streamUrl === s.streamUrl);
+                  const sColor = getGenreColor(s.genre);
+                  const sFreq = getFrequency(s).toFixed(1);
+
+                  return (
+                    <div
+                      key={s._id || s.streamUrl || idx}
+                      onClick={() => {
+                        play(s, queue);
+                        setQueueOpen(false);
+                      }}
+                      className={`group flex cursor-pointer items-center justify-between rounded-chunky border-2 border-ink p-2 transition-all duration-tactile ${
+                        isCurrentThis
+                          ? "bg-cream shadow-hard-sm ring-2 ring-ink"
+                          : "bg-panel hover:bg-panel-inset"
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div
+                          style={{ backgroundColor: sColor }}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-chunky border border-ink font-mono text-[9px] font-black text-ink shadow-[1px_1px_0px_#1B1A17]"
+                        >
+                          {isCurrentThis && live ? (
+                            <AudioLines className="h-4 w-4" />
+                          ) : (
+                            <span>{sFreq}</span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 pr-1">
+                          <p className="truncate font-fredoka text-sm font-bold uppercase text-ink">
+                            {s.name}
+                          </p>
+                          <p className="font-mono text-[10px] text-ink-muted uppercase">
+                            {s.genre} • {sFreq} MHz
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 pl-1">
+                        {isCurrentThis ? (
+                          <span className="rounded-pill border border-ink bg-status-green px-2 py-0.5 font-mono text-[9px] font-black uppercase text-cream">
+                            On Air
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label="Tune into station"
+                            className="flex h-7 w-7 items-center justify-center rounded-pill border border-ink bg-cream opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Play
+                              className="h-3.5 w-3.5 ml-0.5 text-ink"
+                              strokeWidth={2.5}
+                            />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
-      </main>
     </div>
   );
 }

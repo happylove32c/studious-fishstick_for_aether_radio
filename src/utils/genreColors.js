@@ -43,7 +43,9 @@ const KNOWN = {
   "r&b": "#FDA4AF",      // Blush peach
   oldies: "#D6A77A",     // Tan
 
-  // ---- neutral ----
+  hiphop: "#E879F9",     // Orchid magenta
+  lofi: "#FDE047",       // Warm vinyl lofi yellow
+  alternative: "#FB7185",// Strawberry rose
   unknown: "#CBD5E1",    // Slate sticker grey
 };
 

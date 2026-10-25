@@ -16,6 +16,7 @@ export default function PlayerBar() {
     volume,
     setVolume,
     error,
+    recording,
   } = usePlayer();
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function PlayerBar() {
       aria-label="Audio Player Dock"
       onClick={handleBarClick}
       style={{ "--g": accent, "--gb": `${accent}99`, "--gt": ink }}
-      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 mx-auto max-w-4xl cursor-pointer select-none overflow-hidden rounded-panel border-3 border-ink bg-panel p-2.5 text-ink shadow-hard-lg transition-transform duration-tactile ease-spring sm:bottom-5 sm:left-6 sm:right-6 sm:p-3.5"
+      className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 mx-auto max-w-4xl cursor-pointer select-none overflow-hidden rounded-panel border-3 border-ink bg-panel p-2.5 text-ink shadow-hard-lg transition-transform duration-tactile ease-spring sm:bottom-5 sm:left-6 sm:right-6 sm:p-3.5"
     >
       {/*
         Ambient blob: restyled for cream background without blur filters.
@@ -111,10 +112,16 @@ export default function PlayerBar() {
           onClick={stopNav}
           className="min-w-0 flex-1 px-1 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ink focus-visible:ring-offset-2 rounded-chunky"
         >
-          <div className="flex items-center gap-1 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="truncate font-fredoka text-base font-bold uppercase leading-tight text-ink sm:text-lg">
               {current.name}
             </span>
+            {recording && (
+              <span className="flex shrink-0 items-center gap-1 rounded-pill border border-ink bg-[#FF4D4D] px-2 py-0.5 font-mono text-[9px] font-black text-cream shadow-hard-xs animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-cream animate-ping" />
+                REC
+              </span>
+            )}
             <ChevronUp className="h-4 w-4 shrink-0 text-ink-muted" strokeWidth={2.5} />
           </div>
           <p className="mt-0.5 truncate font-mono text-xs font-bold uppercase tracking-wider">
