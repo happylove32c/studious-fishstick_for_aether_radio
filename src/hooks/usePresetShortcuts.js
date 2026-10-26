@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { usePlayer } from "../context/usePlayer";
 import { useStations } from "../context/useStations";
 
@@ -15,11 +15,28 @@ export function usePresetShortcuts() {
   const { stations } = useStations();
   const { play, toggle, isCurrent, isFavorite } = usePlayer();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const ref = useRef({ stations, play, toggle, isCurrent, isFavorite, navigate });
+  const ref = useRef({
+    stations,
+    play,
+    toggle,
+    isCurrent,
+    isFavorite,
+    navigate,
+    pathname: location.pathname,
+  });
   useEffect(() => {
-    ref.current = { stations, play, toggle, isCurrent, isFavorite, navigate };
-  }, [stations, play, toggle, isCurrent, isFavorite, navigate]);
+    ref.current = {
+      stations,
+      play,
+      toggle,
+      isCurrent,
+      isFavorite,
+      navigate,
+      pathname: location.pathname,
+    };
+  }, [stations, play, toggle, isCurrent, isFavorite, navigate, location.pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -35,8 +52,15 @@ export function usePresetShortcuts() {
       const m = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
       if (!m) return;
 
-      const { stations, play, toggle, isCurrent, isFavorite, navigate } =
-        ref.current;
+      const {
+        stations,
+        play,
+        toggle,
+        isCurrent,
+        isFavorite,
+        navigate,
+        pathname,
+      } = ref.current;
 
       if (!stations || stations.length === 0) return;
 
@@ -47,10 +71,14 @@ export function usePresetShortcuts() {
       if (!station) return;
 
       e.preventDefault();
+
       if (isCurrent(station)) {
         toggle();
-      } else {
-        play(station, favorites);
+        return;
+      }
+
+      play(station, favorites);
+      if (pathname !== "/now-playing") {
         navigate("/now-playing");
       }
     };

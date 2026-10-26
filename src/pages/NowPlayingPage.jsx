@@ -582,16 +582,16 @@ export default function NowPlayingPage() {
                   type="button"
                   onClick={toggle}
                   style={{ backgroundColor: live ? "#1B1A17" : accent, color: live ? "#FAF6EE" : ink }}
-                  className="flex h-14 items-center justify-center gap-2.5 rounded-pill border-3 border-ink font-fredoka text-base font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 sm:text-lg"
+                  className="flex h-12 items-center justify-center gap-2 rounded-pill border-3 border-ink font-fredoka text-sm font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 sm:h-14 sm:gap-2.5 sm:text-lg"
                 >
                   {isPlaying ? (
                     <>
-                      <Pause className="h-6 w-6" strokeWidth={2.5} />
+                      <Pause className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.5} />
                       <span>Pause</span>
                     </>
                   ) : (
                     <>
-                      <Play className="h-6 w-6 ml-0.5" strokeWidth={2.5} />
+                      <Play className="h-5 w-5 ml-0.5 sm:h-6 sm:w-6" strokeWidth={2.5} />
                       <span>Transmit</span>
                     </>
                   )}

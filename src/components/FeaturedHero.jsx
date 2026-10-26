@@ -4,20 +4,23 @@ import { useNavigate } from "react-router-dom";
 import { usePlayer } from "../context/usePlayer";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 import { getFrequency } from "../utils/frequency";
+import { getLastPlayed, getTopStation } from "../utils/tasteProfile";
 
 export default function FeaturedHero({ stations = [] }) {
   const { current, isPlaying, status, play, toggle, isFavorite, toggleFavorite } =
     usePlayer();
   const navigate = useNavigate();
 
-  // If a station is already playing or selected, feature it. Otherwise pick a featured one.
-  const [featuredIndex] = useState(() => {
-    const lofiIdx = stations.findIndex((s) => s.genre?.toLowerCase() === "lofi");
-    return lofiIdx >= 0 ? lofiIdx : 0;
-  });
+  // Priority: playing / last played before close (current)
+  //           -> last played overall -> recent frequent -> random.
+  const [lastPlayed] = useState(() => getLastPlayed(stations));
+  const [frequent] = useState(() => getTopStation(stations));
+  const [randomStation] = useState(
+    () => stations[Math.floor(Math.random() * stations.length)]
+  );
 
-  // If there's no active playback, default to the second station or first
-  const displayStation = current || stations[featuredIndex] || stations[0];
+  const displayStation =
+    current || lastPlayed || frequent || randomStation || stations[0];
 
   if (!displayStation) return null;
 
@@ -74,7 +77,13 @@ export default function FeaturedHero({ stations = [] }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-pill border-2 border-ink bg-panel px-3 py-1 font-mono text-[11px] font-black uppercase tracking-wider text-ink shadow-hard-sm">
               <span className={`h-2 w-2 rounded-full ${live ? "bg-status-red animate-ping" : "bg-ink"}`} />
-              {live ? "Now Broadcasting" : "Featured Station"}
+              {live
+                ? "Now Broadcasting"
+                : current || lastPlayed
+                  ? "Last Played"
+                  : frequent
+                    ? "Your Frequent"
+                    : "Random Pick"}
             </span>
 
             <span
@@ -116,16 +125,16 @@ export default function FeaturedHero({ stations = [] }) {
             type="button"
             onClick={handleTuneIn}
             style={{ backgroundColor: live ? "#1B1A17" : color, color: live ? "#FAF6EE" : ink }}
-            className="flex items-center justify-center gap-3 rounded-pill border-3 border-ink px-6 py-4 font-fredoka text-lg font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm sm:px-8 sm:text-xl"
+            className="flex items-center justify-center gap-2 rounded-pill border-3 border-ink px-5 py-3 font-fredoka text-base font-bold uppercase tracking-wider shadow-hard transition-transform duration-tactile ease-spring hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard-lg active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm sm:gap-3 sm:px-8 sm:py-4 sm:text-xl"
           >
             {live ? (
               <>
-                <Pause className="h-6 w-6" strokeWidth={3} />
+                <Pause className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={3} />
                 <span>Pause Transmission</span>
               </>
             ) : (
               <>
-                <Play className="h-6 w-6 ml-0.5" strokeWidth={3} />
+                <Play className="h-5 w-5 ml-0.5 sm:h-6 sm:w-6" strokeWidth={3} />
                 <span>Tune In Now</span>
               </>
             )}

@@ -9,12 +9,30 @@ import ErrorBanner from "../components/ErrorBanner";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
 import { Radio, Heart } from "lucide-react";
+import { recommend, keyOf, hasProfile } from "../utils/tasteProfile";
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  const timeOfDay =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const pool = [
+    `${timeOfDay}, listener`,
+    `${timeOfDay}, listener`,
+    "Welcome back, listener",
+    "Tuning in, listener",
+    "What's the vibe today?",
+    "Signal's strong today",
+    "Dial it in, listener",
+    "Hello, frequency hunter",
+    "Ready when you are",
+    "The airwaves are open",
+  ];
+
+  if (hour >= 22 || hour < 5) pool.push("Late-night waves, listener", "Still up, night owl?");
+  if (hour >= 5 && hour < 9) pool.push("Early bird frequencies");
+
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 export default function HomePage() {
@@ -48,22 +66,26 @@ export default function HomePage() {
     return stations.filter((s) => talkGenres.includes(s.genre?.toLowerCase()));
   }, [stations]);
 
-  // 6 Top quick tune stations for the Spotify-style top grid
-  const quickTuneStations = useMemo(() => {
-    if (stations.length <= 6) return stations;
-    // Mix popular/distinct genres
-    const picked = [];
-    const seenGenres = new Set();
-    for (const s of stations) {
-      const g = s.genre?.toLowerCase();
-      if (!seenGenres.has(g)) {
-        seenGenres.add(g);
-        picked.push(s);
-      }
-      if (picked.length === 6) break;
-    }
-    return picked.length >= 4 ? picked : stations.slice(0, 6);
-  }, [stations]);
+  // On-device recommendations. Computed once per station list so the
+  // home screen does not reshuffle while you listen.
+  const { picks, personalized } = useMemo(
+    () => ({
+      picks: recommend(stations, {
+        limit: 16,
+        exclude: [
+          keyOf(current),
+          ...stations.filter((s) => isFavorite(s)).map(keyOf),
+        ],
+      }),
+      personalized: hasProfile(),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stations]
+  );
+
+  // Top 6 picks for the Quick Tune grid
+  const quickTuneStations = useMemo(() => picks.slice(0, 6), [picks]);
+  const forYouStations = useMemo(() => picks.slice(6, 16), [picks]);
 
   // Filtered stations when a specific category tab is selected
   const activeFilteredStations = useMemo(() => {
@@ -99,8 +121,8 @@ export default function HomePage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-status-green animate-pulse" />
-              <p className="label font-bold uppercase tracking-wider text-ink-muted">
-                {greeting}, listener
+              <p className="font-mono text-xs leading-4 font-bold uppercase tracking-wider text-ink-muted md:text-[0.625rem] md:tracking-[0.28em]">
+                {greeting}
               </p>
             </div>
             <h1 className="font-fredoka text-4xl font-bold uppercase leading-tight tracking-tight text-ink sm:text-6xl md:text-7xl">
@@ -187,14 +209,28 @@ export default function HomePage() {
                     <StationQuickCard
                       key={station._id || station.streamUrl}
                       station={station}
-                      playlist={stations}
+                      playlist={picks}
                     />
                   ))}
                 </div>
               </section>
             )}
 
-            {/* 3. Horizontal Sound Rail 1: Trending Airwaves */}
+            {/* 3a. Picked For You (on-device taste profile) */}
+            {forYouStations.length > 0 && (
+              <StationRail
+                title={personalized ? "Picked For You" : "Discover"}
+                subtitle={
+                  personalized
+                    ? "Tuned to your listening. Stored only on this device"
+                    : "A mix across the dial. Listen more and this learns your taste"
+                }
+                stations={forYouStations}
+                allStations={picks}
+              />
+            )}
+
+            {/* 3b. Horizontal Sound Rail 1: Trending Airwaves */}
             <StationRail
               title="Hot On The Airwaves"
               subtitle="Curated live terrestrial broadcasts across the dial"

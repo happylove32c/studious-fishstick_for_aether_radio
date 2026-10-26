@@ -11,9 +11,15 @@ import { StationsProvider } from "./context/StationsContext";
 import { PlayerProvider } from "./context/PlayerContext";
 import { RecordingPlayerProvider } from "./context/RecordingPlayerContext";
 import { usePlayerShortcuts } from "./hooks/usePlayerShortcuts";
+import { useTasteTracker } from "./hooks/useTasteTracker";
 
 function KeyboardShortcuts() {
   usePlayerShortcuts();
+  return null;
+}
+
+function TasteTracker() {
+  useTasteTracker();
   return null;
 }
 
@@ -52,6 +58,7 @@ function App() {
           <RecordingPlayerProvider>
             <KeyboardShortcuts />
             <NowPlayingSync />
+            <TasteTracker />
             <BackButtonHandler />
             <AnimatedRoutes />
             <PlayerBar />

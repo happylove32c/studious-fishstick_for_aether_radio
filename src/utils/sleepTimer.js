@@ -2,6 +2,7 @@ const listeners = new Set();
 
 let endsAt = null;
 let timeoutId = null;
+let fadeTimeoutId = null;
 let fadeId = null;
 let tickId = null;
 let active = false;
@@ -51,7 +52,7 @@ export function start(minutes) {
   const fadeMs = Math.min(30000, ms);
   const fadeStartIn = Math.max(0, ms - fadeMs);
 
-  const fadeTimeout = setTimeout(() => {
+  fadeTimeoutId = setTimeout(() => {
     if (!active) return;
     const steps = 30;
     const stepMs = fadeMs / steps;
@@ -91,8 +92,6 @@ export function start(minutes) {
     notify();
   }, ms);
 
-  timeoutId._fadeHandle = fadeTimeout;
-
   notify();
   return getState();
 }
@@ -100,8 +99,11 @@ export function start(minutes) {
 export function cancel({ silent = false } = {}) {
   if (timeoutId) {
     clearTimeout(timeoutId);
-    if (timeoutId._fadeHandle) clearTimeout(timeoutId._fadeHandle);
     timeoutId = null;
+  }
+  if (fadeTimeoutId) {
+    clearTimeout(fadeTimeoutId);
+    fadeTimeoutId = null;
   }
   if (fadeId) {
     clearInterval(fadeId);
