@@ -20,6 +20,7 @@ export function useNowPlayingTrack(
   { syncMetadata = false } = {}
 ) {
   const stationId = station?._id || null;
+  const native = isNativePlatform();
 
   // Stored with stationId so changing stationId immediately resets track during render
   const [trackData, setTrackData] = useState({
@@ -50,12 +51,14 @@ export function useNowPlayingTrack(
   const consecutiveFailuresRef = useRef(0);
   const supportedRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const lastFailureTimeRef = useRef(0);
 
   // Main polling & station change effect
   useEffect(() => {
     currentStationIdRef.current = stationId;
     consecutiveFailuresRef.current = 0;
     supportedRef.current = null;
+    lastFailureTimeRef.current = 0;
 
     // Skip if station has no _id or not active
     if (!stationId || !active) {
@@ -69,6 +72,7 @@ export function useNowPlayingTrack(
       if (consecutiveFailuresRef.current >= 3) return;
       if (supportedRef.current === false) return;
       if (
+        !native &&
         typeof document !== "undefined" &&
         document.visibilityState !== "visible"
       ) {
@@ -107,18 +111,31 @@ export function useNowPlayingTrack(
         if (currentStationIdRef.current !== stationId) return;
 
         consecutiveFailuresRef.current += 1;
+        lastFailureTimeRef.current = Date.now();
       }
     };
 
     // Fetch immediately
     loadTrack();
 
-    // Poll every 20s while active and document is visible
+    // Poll every 20s while active and (native OR document is visible)
     const intervalId = setInterval(() => {
+      // Failure reset after 2 minutes with no retries
+      if (
+        consecutiveFailuresRef.current >= 3 &&
+        Date.now() - lastFailureTimeRef.current >= 120000
+      ) {
+        consecutiveFailuresRef.current = 0;
+      }
+
+      const visible =
+        native ||
+        (typeof document !== "undefined" &&
+          document.visibilityState === "visible");
+
       if (
         active &&
-        typeof document !== "undefined" &&
-        document.visibilityState === "visible" &&
+        visible &&
         consecutiveFailuresRef.current < 3 &&
         supportedRef.current !== false
       ) {
@@ -127,6 +144,7 @@ export function useNowPlayingTrack(
     }, 20000);
 
     const handleVisibilityChange = () => {
+      if (native) return;
       if (
         document.visibilityState === "visible" &&
         active &&
@@ -137,14 +155,21 @@ export function useNowPlayingTrack(
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    if (!native && typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
 
     return () => {
       clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (!native && typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+      }
       abortControllerRef.current?.abort();
     };
-  }, [stationId, active]);
+  }, [stationId, active, native]);
 
   // Sync metadata with native notification & MediaSession when syncMetadata is true
   useEffect(() => {
@@ -170,33 +195,42 @@ export function useNowPlayingTrack(
         // Ignore
       }
     }
+  }, [syncMetadata, station, track.title, track.artist]);
 
+  // Restore station defaults only on station change or unmount (syncMetadata true)
+  const stationMetaRef = useRef(null);
+  useEffect(() => {
+    if (!syncMetadata || !station) return;
+    stationMetaRef.current = {
+      name: station.name,
+      genre: station.genre || "Live Radio",
+    };
     return () => {
-      // When the track clears, restore title = station.name, artist = station.genre
-      if (station) {
-        updateNativeMetadata({
-          title: station.name,
-          artist: station.genre || "Live Radio",
-        });
+      const meta = stationMetaRef.current;
+      if (!meta) return;
 
-        if (
-          !isNativePlatform() &&
-          "mediaSession" in navigator &&
-          typeof MediaMetadata !== "undefined"
-        ) {
-          try {
-            navigator.mediaSession.metadata = new MediaMetadata({
-              title: station.name,
-              artist: station.genre || "Live Radio",
-              album: "Aether FM",
-            });
-          } catch {
-            // Ignore
-          }
+      updateNativeMetadata({
+        title: meta.name,
+        artist: meta.genre,
+      });
+
+      if (
+        !isNativePlatform() &&
+        "mediaSession" in navigator &&
+        typeof MediaMetadata !== "undefined"
+      ) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: meta.name,
+            artist: meta.genre,
+            album: "Aether FM",
+          });
+        } catch {
+          // Ignore
         }
       }
     };
-  }, [syncMetadata, station, track.title, track.artist]);
+  }, [syncMetadata, station?._id, station]);
 
   return track;
 }

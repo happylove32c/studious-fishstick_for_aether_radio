@@ -255,6 +255,16 @@ public class MediaPlaybackService extends Service {
             if (intent.hasExtra(EXTRA_ELAPSED)) {
                 recordElapsed = intent.getIntExtra(EXTRA_ELAPSED, 0);
             }
+
+            // Metadata-only update while playing must keep the service foreground.
+            if (isPlaying && !isOffline) {
+                updateMediaSession();
+                Notification fgNotification = buildNotification();
+                acquireLocks();
+                startForeground(NOTIFICATION_ID, fgNotification);
+                lastNotificationUpdateTime = System.currentTimeMillis();
+                return START_STICKY;
+            }
         }
 
         long now = System.currentTimeMillis();

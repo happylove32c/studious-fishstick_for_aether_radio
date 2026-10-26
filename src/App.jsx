@@ -6,6 +6,7 @@ import { closeTopModal } from "./utils/modalStack";
 import AnimatedRoutes from "./components/AnimatedRoutes";
 import PlayerBar from "./components/PlayerBar";
 import BottomNav from "./components/BottomNav";
+import NowPlayingSync from "./components/NowPlayingSync";
 import { StationsProvider } from "./context/StationsContext";
 import { PlayerProvider } from "./context/PlayerContext";
 import { RecordingPlayerProvider } from "./context/RecordingPlayerContext";
@@ -50,6 +51,7 @@ function App() {
         <PlayerProvider>
           <RecordingPlayerProvider>
             <KeyboardShortcuts />
+            <NowPlayingSync />
             <BackButtonHandler />
             <AnimatedRoutes />
             <PlayerBar />

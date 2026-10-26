@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useNowPlayingTrack } from "../hooks/useNowPlayingTrack";
+import SleepTimerRow from "../components/SleepTimerRow";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
@@ -333,7 +334,7 @@ export default function NowPlayingPage() {
   const track = useNowPlayingTrack(
     current,
     isPlaying && status === "connected",
-    { syncMetadata: true }
+    { syncMetadata: false }
   );
   const currentRoute = ROUTE_CONFIG[route] || ROUTE_CONFIG.speaker;
   const RouteIcon = currentRoute.icon;
@@ -705,6 +706,11 @@ export default function NowPlayingPage() {
                     }}
                   />
                 </div>
+              </div>
+
+              {/* Sleep Timer */}
+              <div className="mt-3" data-no-swipe>
+                <SleepTimerRow live={live} />
               </div>
 
               {/* Audio Route Output Indicator */}
