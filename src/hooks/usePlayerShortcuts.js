@@ -1,6 +1,7 @@
 // src/hooks/usePlayerShortcuts.js
 import { useEffect } from "react";
 import { usePlayer } from "../context/usePlayer";
+import { usePresetShortcuts } from "./usePresetShortcuts";
 
 const TEXT_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
@@ -9,6 +10,9 @@ const isButtonOrA = (t) =>
 
 export function usePlayerShortcuts() {
   const { current, toggle, next, prev, playlist } = usePlayer();
+
+  // Install preset 1–6 shortcuts (desktop only, no-op otherwise)
+  usePresetShortcuts();
 
   useEffect(() => {
     if (!current) return; // nothing loaded: let keys scroll/type normally

@@ -226,9 +226,10 @@ export default function HomePage() {
             {favoriteStations.length > 0 && (
               <StationRail
                 title="Your Presets"
-                subtitle="Fast dial to your bookmarked broadcasts"
+                subtitle="Fast dial to your bookmarked broadcasts — press 1–6 to tune"
                 stations={favoriteStations}
                 allStations={favoriteStations}
+                showPresetKeys
               />
             )}
 

@@ -5,7 +5,13 @@ import { usePlayer } from "../context/usePlayer";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 import { getFrequency } from "../utils/frequency";
 
-export default function StationRail({ title, subtitle, stations = [], allStations = [] }) {
+export default function StationRail({
+  title,
+  subtitle,
+  stations = [],
+  allStations = [],
+  showPresetKeys = false,
+}) {
   const scrollRef = useRef(null);
   const { play, toggle, isCurrent, isPlaying, status, isFavorite, toggleFavorite } =
     usePlayer();
@@ -102,16 +108,26 @@ export default function StationRail({ title, subtitle, stations = [], allStation
                 style={{ backgroundColor: color, color: ink }}
                 className="relative flex h-28 w-full flex-col justify-between p-3 border-b-2 border-ink sm:h-32"
               >
-                <div className="flex items-center justify-between">
-                  <span className="rounded-pill border-2 border-ink bg-panel/30 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider">
-                    FM {freq}
-                  </span>
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="rounded-pill border-2 border-ink bg-panel/30 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider">
+                      FM {freq}
+                    </span>
+                    {showPresetKeys && idx < 6 && (
+                      <span
+                        title={`Preset ${idx + 1} — press ${idx + 1} to tune`}
+                        className="rounded-pill border-2 border-ink bg-ink px-1.5 py-0.5 font-mono text-[10px] font-black uppercase tracking-wider text-cream shadow-hard-xs"
+                      >
+                        {idx + 1}
+                      </span>
+                    )}
+                  </div>
 
                   <button
                     type="button"
                     onClick={(e) => handleFav(e, s)}
                     aria-label={fav ? "Remove favorite" : "Add favorite"}
-                    className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink transition-transform duration-tactile ease-spring hover:scale-110 active:scale-95 ${
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-ink transition-transform duration-tactile ease-spring hover:scale-110 active:scale-95 ${
                       fav ? "bg-status-red text-cream" : "bg-panel text-ink"
                     }`}
                   >

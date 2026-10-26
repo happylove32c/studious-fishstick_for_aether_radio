@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { usePlayer } from "../context/usePlayer";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 
-export default function StationCard({ number, station, playlist, genre }) {
+export default function StationCard({ number, station, playlist, genre, presetNumber }) {
   const { play, isCurrent, status, isPlaying, isFavorite, toggleFavorite } =
     usePlayer();
   const navigate = useNavigate();
@@ -38,10 +38,19 @@ export default function StationCard({ number, station, playlist, genre }) {
       >
         {/* Top bar: Number & Live Badge */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="whitespace-nowrap rounded-pill border-2 border-ink bg-panel/30 px-2.5 py-0.5 font-mono text-[11px] font-bold tracking-widest sm:text-xs">
               {number}
             </span>
+            {presetNumber != null && (
+              <span
+                title={`Preset ${presetNumber} — press ${presetNumber} to tune`}
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-pill border-2 border-ink bg-ink px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wider text-cream shadow-hard-xs"
+              >
+                <span className="opacity-70">KEY</span>
+                <span>{presetNumber}</span>
+              </span>
+            )}
             {live && (
               <>
                 {/* Mobile: icon-only round sticker */}
