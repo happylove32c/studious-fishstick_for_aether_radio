@@ -89,7 +89,7 @@ export default function Header() {
         </div>
 
         {/* Random Frequency Dial Button */}
-        {stations.length > 0 && (
+        {/* {stations.length > 0 && (
           <button
             type="button"
             onClick={handleRandomTune}
@@ -99,7 +99,7 @@ export default function Header() {
             <Shuffle className="h-4 w-4" strokeWidth={2.5} />
             <span>Random Dial</span>
           </button>
-        )}
+        )} */}
 
         {/* Settings Gear Button */}
         <Link

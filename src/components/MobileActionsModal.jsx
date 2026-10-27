@@ -103,7 +103,7 @@ export default function MobileActionsModal({ isOpen, onClose }) {
           style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
           {/* 1. Spin Random Dial Button */}
-          <button
+          {/* <button
             type="button"
             onClick={handleRandomTune}
             className="flex w-full items-center justify-between rounded-card border-3 border-ink bg-[#FFD166] p-3.5 text-left text-ink shadow-hard transition-transform duration-tactile active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm"
@@ -124,7 +124,7 @@ export default function MobileActionsModal({ isOpen, onClose }) {
             <span className="rounded-pill border-2 border-ink bg-cream px-2 py-0.5 font-mono text-[10px] font-black uppercase">
               Tune
             </span>
-          </button>
+          </button> */}
 
           {/* 2. Recordings Link Row */}
           <button
