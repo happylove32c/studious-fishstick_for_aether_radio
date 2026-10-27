@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { CassetteTape, Radio, Settings, Shuffle, X } from "lucide-react";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
+import { useRandomTune } from "../hooks/useRandomTune";
 import { useLockBodyScroll } from "../hooks/useLockBodyScroll";
 import { useModalPresence } from "../hooks/useModalPresence";
 import { registerModal } from "../utils/modalStack";
@@ -12,7 +13,8 @@ import { useSheetDrag } from "../hooks/useSheetDrag";
 export default function MobileActionsModal({ isOpen, onClose }) {
   const navigate = useNavigate();
   const { stations } = useStations();
-  const { isPlaying, status, play } = usePlayer();
+  const { isPlaying, status } = usePlayer();
+  const randomTune = useRandomTune();
   const { mounted, closing } = useModalPresence(isOpen);
   const { sheetRef, handleRef, hasEntered, onAnimationEnd } = useSheetDrag(onClose);
 
@@ -39,9 +41,7 @@ export default function MobileActionsModal({ isOpen, onClose }) {
   const live = isPlaying && status === "connected";
 
   const handleRandomTune = () => {
-    if (!stations || stations.length === 0) return;
-    const rand = stations[Math.floor(Math.random() * stations.length)];
-    play(rand, stations);
+    randomTune();
     onClose();
   };
 
@@ -103,7 +103,7 @@ export default function MobileActionsModal({ isOpen, onClose }) {
           style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
           {/* 1. Spin Random Dial Button */}
-          {/* <button
+          <button
             type="button"
             onClick={handleRandomTune}
             className="flex w-full items-center justify-between rounded-card border-3 border-ink bg-[#FFD166] p-3.5 text-left text-ink shadow-hard transition-transform duration-tactile active:translate-x-0.5 active:translate-y-0.5 active:shadow-hard-sm"
@@ -124,7 +124,7 @@ export default function MobileActionsModal({ isOpen, onClose }) {
             <span className="rounded-pill border-2 border-ink bg-cream px-2 py-0.5 font-mono text-[10px] font-black uppercase">
               Tune
             </span>
-          </button> */}
+          </button>
 
           {/* 2. Recordings Link Row */}
           <button

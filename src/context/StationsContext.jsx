@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { StationsContext } from "./StationsContextDef";
+import { createContext, useCallback, useEffect, useState } from "react";
+
+export const StationsContext = createContext(null);
 
 const API = "https://laughing-barnacle-ashn.onrender.com/stations";
 const CACHE_KEY = "aether:stations:v2";

@@ -1,48 +1,27 @@
 import { AudioLines, Play, Pause, Heart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { usePlayer } from "../context/usePlayer";
+import { useStationPlayback } from "../hooks/useStationPlayback";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 import { getFrequency } from "../utils/frequency";
 
 export default function StationQuickCard({ station, playlist }) {
-  const { play, toggle, isCurrent, status, isPlaying, isFavorite, toggleFavorite } =
-    usePlayer();
-  const navigate = useNavigate();
-
-  const isCurrentStation = isCurrent(station);
-  const live = isCurrentStation && isPlaying && status === "connected";
-  const fav = isFavorite(station);
+  const {
+    isCurrent,
+    live,
+    fav,
+    handleCardClick,
+    handleQuickPlay: handlePlayToggle,
+    handleFav,
+  } = useStationPlayback(station, playlist);
 
   const color = getGenreColor(station.genre);
   const ink = readableOn(color);
   const freq = getFrequency(station).toFixed(1);
 
-  const handleCardClick = () => {
-    if (!isCurrentStation) {
-      play(station, playlist || [station]);
-    }
-    navigate("/now-playing");
-  };
-
-  const handlePlayToggle = (e) => {
-    e.stopPropagation();
-    if (isCurrentStation) {
-      toggle();
-    } else {
-      play(station, playlist || [station]);
-    }
-  };
-
-  const handleFav = (e) => {
-    e.stopPropagation();
-    toggleFavorite(station);
-  };
-
   return (
     <div
       onClick={handleCardClick}
       className={`group relative flex cursor-pointer items-center justify-between overflow-hidden rounded-chunky border-2 border-ink bg-panel p-2 shadow-hard-sm transition-all duration-tactile ease-spring hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0 active:shadow-hard-sm sm:p-2.5 ${
-        isCurrentStation ? "ring-2 ring-ink bg-cream" : ""
+        isCurrent ? "ring-2 ring-ink bg-cream" : ""
       }`}
     >
       {/* Left side: Accent color block & info */}

@@ -1,24 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { getCached, fetchTrack } from "../utils/nowPlayingCache";
-import {
-  isNativePlatform,
-  updateNativeMetadata,
-} from "../utils/nativeMediaControls";
+import { isNativePlatform } from "../utils/nativeMediaControls";
 
 /**
  * Hook to poll and sync live now playing track metadata for a station.
  *
+ * Native / MediaSession metadata syncing lives in useNativeMediaSync.
+ *
  * @param {Object} station - The active station object with _id, name, genre.
  * @param {boolean} active - Whether the station is currently playing / active.
- * @param {Object} options
- * @param {boolean} options.syncMetadata - Whether to sync track info to native notification & MediaSession.
  * @returns {{ artist: string|null, title: string|null, supported: boolean|null }}
  */
-export function useNowPlayingTrack(
-  station,
-  active,
-  { syncMetadata = false } = {}
-) {
+export function useNowPlayingTrack(station, active) {
   const stationId = station?._id || null;
   const native = isNativePlatform();
 
@@ -170,67 +163,6 @@ export function useNowPlayingTrack(
       abortControllerRef.current?.abort();
     };
   }, [stationId, active, native]);
-
-  // Sync metadata with native notification & MediaSession when syncMetadata is true
-  useEffect(() => {
-    if (!syncMetadata || !station) return;
-
-    const title = track.title || station.name || "Aether FM";
-    const artist = track.artist || station.genre || "Live Radio";
-
-    updateNativeMetadata({ title, artist });
-
-    if (
-      !isNativePlatform() &&
-      "mediaSession" in navigator &&
-      typeof MediaMetadata !== "undefined"
-    ) {
-      try {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title,
-          artist,
-          album: "Aether FM",
-        });
-      } catch {
-        // Ignore
-      }
-    }
-  }, [syncMetadata, station, track.title, track.artist]);
-
-  // Restore station defaults only on station change or unmount (syncMetadata true)
-  const stationMetaRef = useRef(null);
-  useEffect(() => {
-    if (!syncMetadata || !station) return;
-    stationMetaRef.current = {
-      name: station.name,
-      genre: station.genre || "Live Radio",
-    };
-    return () => {
-      const meta = stationMetaRef.current;
-      if (!meta) return;
-
-      updateNativeMetadata({
-        title: meta.name,
-        artist: meta.genre,
-      });
-
-      if (
-        !isNativePlatform() &&
-        "mediaSession" in navigator &&
-        typeof MediaMetadata !== "undefined"
-      ) {
-        try {
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: meta.name,
-            artist: meta.genre,
-            album: "Aether FM",
-          });
-        } catch {
-          // Ignore
-        }
-      }
-    };
-  }, [syncMetadata, station?._id, station]);
 
   return track;
 }

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { RecordingPlayerContext } from "./RecordingPlayerContextDef";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { usePlayer } from "./usePlayer";
+
+export const RecordingPlayerContext = createContext(null);
 import {
   getRecordingBlob,
   listRecordings,

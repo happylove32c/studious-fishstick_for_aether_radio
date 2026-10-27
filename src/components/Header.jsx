@@ -2,19 +2,15 @@ import { Headphones, Settings, Shuffle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useStations } from "../context/useStations";
 import { usePlayer } from "../context/usePlayer";
+import { useRandomTune } from "../hooks/useRandomTune";
 
 export default function Header() {
   const { pathname } = useLocation();
   const { stations } = useStations();
-  const { isPlaying, status, play } = usePlayer();
+  const { isPlaying, status } = usePlayer();
+  const randomTune = useRandomTune();
 
   const live = isPlaying && status === "connected";
-
-  const handleRandomTune = () => {
-    if (!stations || stations.length === 0) return;
-    const rand = stations[Math.floor(Math.random() * stations.length)];
-    play(rand, stations);
-  };
 
   const navItem = (to, label, badge) => {
     const active =
@@ -89,17 +85,17 @@ export default function Header() {
         </div>
 
         {/* Random Frequency Dial Button */}
-        {/* {stations.length > 0 && (
+        {stations.length > 0 && (
           <button
             type="button"
-            onClick={handleRandomTune}
+            onClick={randomTune}
             title="Tune into a random frequency"
             className="flex items-center gap-2 rounded-pill border-2 border-ink bg-cream px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0"
           >
             <Shuffle className="h-4 w-4" strokeWidth={2.5} />
             <span>Random Dial</span>
           </button>
-        )} */}
+        )}
 
         {/* Settings Gear Button */}
         <Link

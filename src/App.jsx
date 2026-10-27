@@ -7,6 +7,7 @@ import AnimatedRoutes from "./components/AnimatedRoutes";
 import PlayerBar from "./components/PlayerBar";
 import BottomNav from "./components/BottomNav";
 import NowPlayingSync from "./components/NowPlayingSync";
+import { useNativeMediaSync } from "./hooks/useNativeMediaSync";
 import { StationsProvider } from "./context/StationsContext";
 import { PlayerProvider } from "./context/PlayerContext";
 import { RecordingPlayerProvider } from "./context/RecordingPlayerContext";
@@ -20,6 +21,11 @@ function KeyboardShortcuts() {
 
 function TasteTracker() {
   useTasteTracker();
+  return null;
+}
+
+function NativeMediaSync() {
+  useNativeMediaSync();
   return null;
 }
 
@@ -58,6 +64,7 @@ function App() {
           <RecordingPlayerProvider>
             <KeyboardShortcuts />
             <NowPlayingSync />
+            <NativeMediaSync />
             <TasteTracker />
             <BackButtonHandler />
             <AnimatedRoutes />

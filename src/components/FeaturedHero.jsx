@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Play, Pause, Radio, Heart, Shuffle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePlayer } from "../context/usePlayer";
+import { useRandomTune } from "../hooks/useRandomTune";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 import { getFrequency } from "../utils/frequency";
 import { getLastPlayed, getTopStation } from "../utils/tasteProfile";
@@ -10,6 +11,7 @@ export default function FeaturedHero({ stations = [] }) {
   const { current, isPlaying, status, play, toggle, isFavorite, toggleFavorite } =
     usePlayer();
   const navigate = useNavigate();
+  const randomTune = useRandomTune();
 
   // Priority: playing / last played before close (current)
   //           -> last played overall -> recent frequent -> random.
@@ -37,13 +39,6 @@ export default function FeaturedHero({ stations = [] }) {
     } else {
       play(displayStation, stations);
     }
-  };
-
-  const handleSurpriseSpin = () => {
-    if (stations.length === 0) return;
-    const randIdx = Math.floor(Math.random() * stations.length);
-    const chosen = stations[randIdx];
-    play(chosen, stations);
   };
 
   const openNowPlaying = () => {
@@ -145,7 +140,7 @@ export default function FeaturedHero({ stations = [] }) {
             {/* Random Dial Spinner */}
             <button
               type="button"
-              onClick={handleSurpriseSpin}
+              onClick={() => randomTune(stations)}
               title="Tune into a random frequency"
               className="flex flex-1 items-center justify-center gap-2 rounded-pill border-2 border-ink bg-cream px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-ink shadow-hard-sm transition-transform duration-tactile ease-spring hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0 active:shadow-hard-sm sm:flex-none"
             >

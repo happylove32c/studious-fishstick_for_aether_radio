@@ -17,8 +17,6 @@ import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
-import androidx.media.app.NotificationCompat.MediaStyle;
 import androidx.media.session.MediaButtonReceiver;
 
 public class MediaPlaybackService extends Service {
@@ -47,7 +45,7 @@ public class MediaPlaybackService extends Service {
     public static final String EXTRA_POSITION = "extra_position";
     public static final String EXTRA_SPEED = "extra_speed";
 
-    private static final String CHANNEL_ID = "aether_fm_media";
+    static final String CHANNEL_ID = "aether_fm_media";
     private static final int NOTIFICATION_ID = 1001;
 
     public interface ActionCallback {
@@ -351,103 +349,15 @@ public class MediaPlaybackService extends Service {
     }
 
     private Notification buildNotification() {
-        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
-        }
-
-        Intent playPauseIntent = new Intent(this, MediaPlaybackService.class)
-                .setAction(isPlaying ? ACTION_PAUSE : ACTION_PLAY);
-        PendingIntent playPausePending = PendingIntent.getService(this, 2, playPauseIntent, pendingFlags);
-
-        Intent stopIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_STOP);
-        PendingIntent stopPending = PendingIntent.getService(this, 4, stopIntent, pendingFlags);
-
-        Intent launchIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        PendingIntent contentIntent = null;
-        if (launchIntent != null) {
-            launchIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            contentIntent = PendingIntent.getActivity(this, 0, launchIntent, pendingFlags);
-        }
-
-        int iconId = getResources().getIdentifier("ic_stat_radio", "drawable", getPackageName());
-        if (iconId == 0) {
-            iconId = getApplicationInfo().icon;
-        }
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(iconId)
-                .setContentTitle(currentTitle)
-                .setContentIntent(contentIntent)
-                .setDeleteIntent(stopPending)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setOngoing(isPlaying || isRecording)
-                .setOnlyAlertOnce(true)
-                .setShowWhen(false);
-
-        if (isOffline) {
-            Intent rewindIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_REWIND);
-            PendingIntent rewindPending = PendingIntent.getService(this, 6, rewindIntent, pendingFlags);
-
-            Intent ffIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_FAST_FORWARD);
-            PendingIntent ffPending = PendingIntent.getService(this, 7, ffIntent, pendingFlags);
-
-            builder.setContentText(currentArtist)
-                    .addAction(android.R.drawable.ic_media_rew, "Rewind", rewindPending)
-                    .addAction(
-                            isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
-                            isPlaying ? "Pause" : "Play",
-                            playPausePending
-                    )
-                    .addAction(android.R.drawable.ic_media_ff, "Forward", ffPending);
-
-            builder.setStyle(
-                    new MediaStyle()
-                            .setMediaSession(mediaSession != null ? mediaSession.getSessionToken() : null)
-                            .setShowActionsInCompactView(0, 1, 2)
-                            .setShowCancelButton(true)
-                            .setCancelButtonIntent(stopPending)
-            );
-        } else {
-            Intent prevIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_PREVIOUS);
-            PendingIntent prevPending = PendingIntent.getService(this, 1, prevIntent, pendingFlags);
-
-            Intent nextIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_NEXT);
-            PendingIntent nextPending = PendingIntent.getService(this, 3, nextIntent, pendingFlags);
-
-            Intent stopRecIntent = new Intent(this, MediaPlaybackService.class).setAction(ACTION_STOP_REC);
-            PendingIntent stopRecPending = PendingIntent.getService(this, 5, stopRecIntent, pendingFlags);
-
-            int minutes = recordElapsed / 60;
-            int seconds = recordElapsed % 60;
-            String recTime = String.format("%02d:%02d", minutes, seconds);
-            String contentText = isRecording ? ("● REC " + recTime) : currentArtist;
-
-            builder.setContentText(contentText)
-                    .addAction(android.R.drawable.ic_media_previous, "Previous", prevPending)
-                    .addAction(
-                            isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
-                            isPlaying ? "Pause" : "Play",
-                            playPausePending
-                    )
-                    .addAction(android.R.drawable.ic_media_next, "Next", nextPending);
-
-            if (isRecording) {
-                builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Rec", stopRecPending);
-            }
-
-            builder.setStyle(
-                    new MediaStyle()
-                            .setMediaSession(mediaSession != null ? mediaSession.getSessionToken() : null)
-                            .setShowActionsInCompactView(0, 1, 2)
-                            .setShowCancelButton(true)
-                            .setCancelButtonIntent(stopPending)
-            );
-        }
-
-        return builder.build();
+        return NotificationBuilder.build(
+                this,
+                mediaSession,
+                currentTitle,
+                currentArtist,
+                isPlaying,
+                isRecording,
+                isOffline,
+                recordElapsed);
     }
 
     private void acquireLocks() {

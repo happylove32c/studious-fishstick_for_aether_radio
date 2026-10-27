@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { RecordingPlayerContext } from "./RecordingPlayerContextDef";
+import { RecordingPlayerContext } from "./RecordingPlayerContext";
 
 export function useRecordingPlayer() {
   const context = useContext(RecordingPlayerContext);

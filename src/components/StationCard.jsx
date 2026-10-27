@@ -1,32 +1,14 @@
 import { ArrowRight, AudioLines, Heart, Play } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { usePlayer } from "../context/usePlayer";
+import { useStationPlayback } from "../hooks/useStationPlayback";
 import { getGenreColor, readableOn } from "../utils/genreColors";
 
 export default function StationCard({ number, station, playlist, genre, presetNumber }) {
-  const { play, isCurrent, status, isPlaying, isFavorite, toggleFavorite } =
-    usePlayer();
-  const navigate = useNavigate();
-
-  const isCurrentStation = isCurrent(station);
-  const live = isCurrentStation && isPlaying && status === "connected";
-  const fav = isFavorite(station);
+  const { live, fav, handleCardClick: handleClick, handleFav } =
+    useStationPlayback(station, playlist);
 
   const cardGenre = genre || station.genre;
   const color = getGenreColor(cardGenre);
   const ink = readableOn(color);
-
-  const handleClick = () => {
-    if (!isCurrentStation || status === "error") {
-      play(station, playlist || [station]);
-    }
-    navigate("/now-playing");
-  };
-
-  const handleFav = (e) => {
-    e.stopPropagation();
-    toggleFavorite(station);
-  };
   return (
     <div
       style={{ "--g": color, "--gb": `${color}99`, "--gt": ink }}

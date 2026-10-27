@@ -11,8 +11,16 @@ import { usePlayer } from "../context/usePlayer";
 import { Radio, Heart } from "lucide-react";
 import { recommend, keyOf, hasProfile } from "../utils/tasteProfile";
 
-function getGreeting() {
-  const hour = new Date().getHours();
+const GREETING_SESSION_KEY = "aether:greeting:session:v1";
+
+function getTimeBand(hour) {
+  if (hour >= 22 || hour < 5) return "night";
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
+}
+
+function pickGreeting(hour) {
   const timeOfDay =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
@@ -35,13 +43,40 @@ function getGreeting() {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Picked once per browser session per date and time band, then reused on
+// every page load until the band or date changes.
+function getGreeting() {
+  const now = new Date();
+  const hour = now.getHours();
+  const id = `${now.toDateString()}|${getTimeBand(hour)}`;
+
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(GREETING_SESSION_KEY));
+    if (stored && stored.id === id && typeof stored.text === "string") {
+      return stored.text;
+    }
+  } catch {
+    /* storage blocked or value corrupt - fall through and pick a new one */
+  }
+
+  const text = pickGreeting(hour);
+
+  try {
+    sessionStorage.setItem(GREETING_SESSION_KEY, JSON.stringify({ id, text }));
+  } catch {
+    /* storage blocked or quota exceeded - greeting still shows */
+  }
+
+  return text;
+}
+
 export default function HomePage() {
   const { stations, loading, error, reload } = useStations();
   const { current, isFavorite } = usePlayer();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showAllQuick, setShowAllQuick] = useState(false);
 
-  const greeting = useMemo(() => getGreeting(), []);
+  const [greeting] = useState(getGreeting);
 
 
 

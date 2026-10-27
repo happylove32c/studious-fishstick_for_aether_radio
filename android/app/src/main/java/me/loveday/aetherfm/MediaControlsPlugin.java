@@ -72,9 +72,9 @@ public class MediaControlsPlugin extends Plugin {
         if (context != null) {
             Intent intent = new Intent(context, MediaPlaybackService.class);
             intent.setAction(MediaPlaybackService.ACTION_UPDATE);
-            intent.putExtra(MediaPlaybackService.EXTRA_TITLE, stationTitle);
-            intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, stationArtist);
-            intent.putExtra(MediaPlaybackService.EXTRA_IS_PLAYING, isPlaying);
+            // Only recording state is sent. Title, artist and isPlaying extras would
+            // make the service treat every tick as a metadata change and defeat the
+            // 5-second throttle in MediaPlaybackService.onStartCommand.
             if (rec != null) {
                 intent.putExtra(MediaPlaybackService.EXTRA_RECORDING, rec);
             }
